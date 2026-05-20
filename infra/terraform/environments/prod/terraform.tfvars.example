@@ -1,0 +1,49 @@
+# ============================================================
+# Market Data Reliability Platform — Production tfvars example
+# Copy this file to terraform.tfvars and fill in real values.
+# Never commit terraform.tfvars to version control.
+# ============================================================
+
+# AWS region (default: eu-west-1)
+aws_region = "eu-west-1"
+
+# Short project identifier used in resource names
+project_name = "mdrp"
+
+# Deployment environment tag
+environment = "prod"
+
+# VPC CIDR block
+vpc_cidr = "10.0.0.0/16"
+
+# One ECR repository will be created per entry.
+# Edit only if you rename or add a service.
+ecr_repository_names = [
+  "provider-emulator",
+  "validation-service",
+  "bronze-writer",
+  "normalization-service",
+  "redis-writer",
+  "silver-loader",
+  "gold-loader",
+  "replay-engine",
+  "ops-api",
+]
+
+# ── Databento ──────────────────────────────────────────────
+# Obtain from https://databento.com/portal/settings/api-keys
+databento_api_key = "db-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# ── Snowflake ──────────────────────────────────────────────
+# Account identifier format: <orgname>-<account_name>  (e.g. myorg-xy12345)
+snowflake_account  = "<orgname>-<account_name>"
+snowflake_user     = "MDRP_SVC_USER"
+snowflake_password = "<snowflake-service-user-password>"
+
+# ── SMTP (leave blank to disable e-mail alerts) ────────────
+smtp_host     = "smtp.example.com"
+smtp_username = "alerts@example.com"
+smtp_password = "<smtp-password>"
+
+# ── Microsoft Teams webhook (leave blank to disable) ───────
+teams_webhook_url = "https://outlook.office.com/webhook/<guid>/IncomingWebhook/<token>"
