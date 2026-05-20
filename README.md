@@ -458,7 +458,7 @@ All services read configuration from environment variables (pydantic-settings). 
 | `S3_BUCKET_BRONZE` | `mdrp-bronze` | S3 bucket for Bronze Parquet writes |
 | `AWS_ACCESS_KEY_ID` | _(none)_ | AWS or MinIO access key |
 | `AWS_SECRET_ACCESS_KEY` | _(none)_ | AWS or MinIO secret key |
-| `AWS_REGION` | `eu-west-1` | AWS region (used for S3 path-style vs virtual-hosted) |
+| `AWS_REGION` | `us-east-1` | AWS region (used for S3 path-style vs virtual-hosted) |
 | `LOG_LEVEL` | `INFO` | Structlog log level |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://jaeger:4317` | Jaeger OTLP gRPC endpoint |
 | `OTEL_ENABLED` | `true` | Enable/disable OpenTelemetry tracing |
@@ -485,7 +485,7 @@ All services read configuration from environment variables (pydantic-settings). 
 
 | Variable | Default | Description |
 |---|---|---|
-| `SNOWFLAKE_ACCOUNT` | _(none)_ | Snowflake account identifier (e.g. `xy12345.eu-west-1`) |
+| `SNOWFLAKE_ACCOUNT` | _(none)_ | Snowflake account identifier (e.g. `xy12345.us-east-1`) |
 | `SNOWFLAKE_USER` | _(none)_ | Snowflake login name |
 | `SNOWFLAKE_PASSWORD` | _(none)_ | Snowflake password (use Secrets Manager in production) |
 | `SNOWFLAKE_DATABASE` | `MARKET_DATA_PLATFORM` | Target database |
@@ -553,7 +553,7 @@ curl -X POST http://localhost:8000/api/v1/replay \
 
 - A Snowflake account (trial or paid)
 - `SYSADMIN` role to run the DDL scripts
-- The Snowflake account identifier in the format `<account>.<region>` (e.g. `xy12345.eu-west-1`)
+- The Snowflake account identifier in the format `<account>.<region>` (e.g. `xy12345.us-east-1`)
 
 ### Running the DDL scripts
 
@@ -586,7 +586,7 @@ Execute the four scripts in `infra/snowflake/` in order using SnowSQL or the Sno
 Set these in `.env` (or use AWS Secrets Manager in production):
 
 ```bash
-SNOWFLAKE_ACCOUNT=xy12345.eu-west-1
+SNOWFLAKE_ACCOUNT=xy12345.us-east-1
 SNOWFLAKE_USER=mdrp_loader
 SNOWFLAKE_PASSWORD=your-password
 SNOWFLAKE_DATABASE=MDRP

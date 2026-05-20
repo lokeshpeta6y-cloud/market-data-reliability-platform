@@ -1,7 +1,7 @@
 # Market Data Reliability Platform — Terraform Deployment Guide
 
 This guide covers bootstrapping and deploying the MDRP production infrastructure
-to a clean AWS account (eu-west-1 default region).
+to a clean AWS account (us-east-1 default region).
 
 ---
 
@@ -58,8 +58,8 @@ Run once in the target account:
 # Create the state bucket (versioning and encryption are recommended)
 aws s3api create-bucket \
   --bucket mdrp-terraform-state-prod \
-  --region eu-west-1 \
-  --create-bucket-configuration LocationConstraint=eu-west-1
+  --region us-east-1 \
+  --create-bucket-configuration LocationConstraint=us-east-1
 
 aws s3api put-bucket-versioning \
   --bucket mdrp-terraform-state-prod \
@@ -81,7 +81,7 @@ aws dynamodb create-table \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST \
-  --region eu-west-1
+  --region us-east-1
 ```
 
 ---
@@ -154,7 +154,7 @@ After `terraform apply`, build and push each service image. Example for
 
 ```bash
 # Get ECR login token
-aws ecr get-login-password --region eu-west-1 \
+aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin \
     $(terraform output -raw ecr_repository_urls | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['silver-loader'].rsplit('/',1)[0])")
 
@@ -248,7 +248,7 @@ be deleted manually if no longer needed:
 
 ```bash
 aws s3 rb s3://mdrp-terraform-state-prod --force
-aws dynamodb delete-table --table-name mdrp-terraform-locks --region eu-west-1
+aws dynamodb delete-table --table-name mdrp-terraform-locks --region us-east-1
 ```
 
 ---

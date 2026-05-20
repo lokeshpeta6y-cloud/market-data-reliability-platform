@@ -66,7 +66,7 @@ so quiet periods still produce timely files.
 | `S3_BUCKET_BRONZE` | `mdrp-bronze` | Target S3 bucket |
 | `AWS_ACCESS_KEY_ID` | _(unset)_ | AWS / MinIO access key |
 | `AWS_SECRET_ACCESS_KEY` | _(unset)_ | AWS / MinIO secret key |
-| `AWS_REGION` | `eu-west-1` | AWS region |
+| `AWS_REGION` | `us-east-1` | AWS region |
 | `BATCH_SIZE` | `500` | Events per Parquet file (max) |
 | `FLUSH_INTERVAL_SECONDS` | `30` | Max seconds between flushes |
 | `METRICS_PORT` | `8003` | Prometheus metrics port |

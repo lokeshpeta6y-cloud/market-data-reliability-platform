@@ -17,7 +17,7 @@ terraform {
     # See infra/terraform/README.md for instructions.
     bucket         = "mdrp-terraform-state-prod"
     key            = "prod/terraform.tfstate"
-    region         = "eu-west-1"
+    region         = "us-east-1"
     encrypt        = true
     dynamodb_table = "mdrp-terraform-locks"
   }

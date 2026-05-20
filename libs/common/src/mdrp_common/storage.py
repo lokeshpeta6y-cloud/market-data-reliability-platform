@@ -30,7 +30,7 @@ class BronzeStorageClient:
     def __init__(
         self,
         bucket: str,
-        region: str = "eu-west-1",
+        region: str = "us-east-1",
         endpoint_url: str | None = None,
         aws_access_key_id: str | None = None,
         aws_secret_access_key: str | None = None,

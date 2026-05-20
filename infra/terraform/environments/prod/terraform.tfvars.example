@@ -4,8 +4,8 @@
 # Never commit terraform.tfvars to version control.
 # ============================================================
 
-# AWS region (default: eu-west-1)
-aws_region = "eu-west-1"
+# AWS region (default: us-east-1)
+aws_region = "us-east-1"
 
 # Short project identifier used in resource names
 project_name = "mdrp"

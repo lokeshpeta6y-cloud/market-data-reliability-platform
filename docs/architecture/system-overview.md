@@ -339,7 +339,7 @@ Configure S3 lifecycle rules in `infra/terraform/modules/s3/main.tf` to:
 **Production (ECS Fargate):** No credentials are ever embedded in Docker images, task definitions, or Terraform state files. The pattern is:
 
 1. Real credentials are stored in AWS Secrets Manager as versioned secrets
-2. ECS task definitions reference secrets by ARN: `{"valueFrom": "arn:aws:secretsmanager:eu-west-1:123456:secret:mdrp/snowflake-password"}`
+2. ECS task definitions reference secrets by ARN: `{"valueFrom": "arn:aws:secretsmanager:us-east-1:123456:secret:mdrp/snowflake-password"}`
 3. ECS injects the resolved values as environment variables at container startup
 4. IAM task roles grant `secretsmanager:GetSecretValue` permission scoped to the `mdrp/*` secret path only
 

@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region for all resources"
   type        = string
-  default     = "eu-west-1"
+  default     = "us-east-1"
 }
 
 variable "project_name" {
@@ -45,7 +45,7 @@ variable "databento_api_key" {
 }
 
 variable "snowflake_account" {
-  description = "Snowflake account identifier (e.g. xy12345.eu-west-1)"
+  description = "Snowflake account identifier (e.g. xy12345.us-east-1)"
   type        = string
 }
 

@@ -50,7 +50,7 @@ class BaseServiceSettings(BaseSettings):
     aws_secret_access_key: str | None = Field(
         default=None, alias="AWS_SECRET_ACCESS_KEY"
     )
-    aws_region: str = Field(default="eu-west-1", alias="AWS_REGION")
+    aws_region: str = Field(default="us-east-1", alias="AWS_REGION")
 
     # Snowflake (optional — skipped if not configured)
     snowflake_account: str | None = Field(default=None, alias="SNOWFLAKE_ACCOUNT")
