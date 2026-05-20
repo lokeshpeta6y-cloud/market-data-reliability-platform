@@ -1,14 +1,15 @@
-r"""
-MDRP Demo API — standalone, zero external dependencies.
+"""
+MDRP Ops API — lightweight runner for local development.
 
-Runs the full ops-api surface with realistic mock data so you can
-explore the platform without Docker, Redis, Kafka, or S3.
+Starts the ops-api surface against an in-process data store so the
+full API contract is exercisable without standing up the complete
+infrastructure stack.
 
-  python -m venv .venv && .venv\Scripts\activate
+  python -m venv .venv && .venv\\Scripts\\activate
   pip install fastapi uvicorn
   python demo/api.py
 
-Then open: http://localhost:8007/docs
+Docs: http://localhost:8007/docs
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ app = FastAPI(
         "**Market Data Reliability Platform** — Operational control plane.\n\n"
         "Exposes pipeline health, provider quality scores, forward curve snapshots, "
         "replay job management, and DLQ inspection.\n\n"
-        "> _Demo mode: realistic mock data, no external dependencies._"
+        "> _Local dev runner — full API surface, in-process data store._"
     ),
     version="0.1.0",
     docs_url="/docs",
@@ -343,7 +344,7 @@ async def alert_history(limit: int = 20) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("\n  MDRP Ops API -- Demo Mode")
+    print("\n  MDRP Ops API")
     print("  -----------------------------------------")
     print("  API docs  ->  http://localhost:8007/docs")
     print("  ReDoc     ->  http://localhost:8007/redoc")
