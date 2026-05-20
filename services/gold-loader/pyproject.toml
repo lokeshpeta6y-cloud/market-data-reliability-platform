@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gold-loader"
+version = "0.1.0"
+description = "Assembles ForwardCurveSnapshots from normalised CurveEvents and loads them to Snowflake Gold layer"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+
+dependencies = [
+    # Shared platform library — installed from the monorepo path
+    "mdrp-common @ file:///${PROJECT_ROOT}/../../libs/common",
+    # Kafka client
+    "confluent-kafka>=2.3.0",
+    # Metrics
+    "prometheus-client>=0.19.0",
+    # Structured logging
+    "structlog>=24.1.0",
+    # Settings / validation
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+]
+
+[project.optional-dependencies]
+snowflake = [
+    # Optional — service runs without Snowflake; install to enable Gold loading
+    "snowflake-connector-python>=3.10.0,<4",
+]
+
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+    "freezegun>=1.4.0",
+]
+
+[project.scripts]
+gold-loader = "gold_loader.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gold_loader"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line length handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gold_loader", "mdrp_common"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
