@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "normalization-service"
+version = "0.1.0"
+description = "Normalisation service — converts validated market events to canonical CurveEvents"
+requires-python = ">=3.11"
+dependencies = [
+    "mdrp-common",
+    "redis>=5.0,<6",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.3,<3",
+    "confluent-kafka>=2.4,<3",
+    "prometheus-client>=0.20,<1",
+    "structlog>=24.1,<25",
+]
+
+[project.scripts]
+normalization-service = "normalization_service.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/normalization_service"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
