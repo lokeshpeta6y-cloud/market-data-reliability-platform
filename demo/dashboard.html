@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MDRP — Market Data Reliability Platform</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f0f6fc;
+      letter-spacing: 0.3px;
+    }
+    header h1 span { color: #58a6ff; }
+    #last-updated { font-size: 11px; color: #6e7681; }
+    #status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #3fb950;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    /* ── Layout ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 16px 24px;
+    }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    /* ── Cards ── */
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6e7681;
+      margin-bottom: 12px;
+    }
+
+    /* ── KPI tiles ── */
+    .kpi { text-align: center; }
+    .kpi .value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #f0f6fc;
+      line-height: 1;
+    }
+    .kpi .label { font-size: 11px; color: #6e7681; margin-top: 4px; }
+    .kpi .sub   { font-size: 11px; color: #3fb950; margin-top: 2px; }
+    .kpi .warn  { color: #d29922; }
+    .kpi .bad   { color: #f85149; }
+
+    /* ── Pipeline services ── */
+    .service-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #21262d;
+    }
+    .service-row:last-child { border-bottom: none; }
+    .service-name { color: #c9d1d9; font-size: 12px; }
+    .service-meta { font-size: 11px; color: #6e7681; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-green  { background: #1a3a2a; color: #3fb950; }
+    .badge-yellow { background: #3a2f1a; color: #d29922; }
+    .badge-red    { background: #3a1a1a; color: #f85149; }
+    .badge-blue   { background: #1a2a3a; color: #58a6ff; }
+
+    /* ── Kafka topics ── */
+    .topic-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid #21262d;
+    }
+    .topic-row:last-child { border-bottom: none; }
+    .topic-name { flex: 1; font-family: monospace; font-size: 11px; color: #8b949e; }
+    .lag-bar-wrap { width: 80px; height: 4px; background: #21262d; border-radius: 2px; }
+    .lag-bar { height: 4px; border-radius: 2px; background: #3fb950; transition: width 0.4s; }
+    .topic-eps { width: 55px; text-align: right; font-size: 11px; color: #6e7681; }
+
+    /* ── Provider quality ── */
+    .provider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid #21262d;
+    }
+    .provider-row:last-child { border-bottom: none; }
+    .provider-name { flex: 1; font-size: 12px; color: #c9d1d9; }
+    .score-bar-wrap { width: 100px; height: 6px; background: #21262d; border-radius: 3px; }
+    .score-bar { height: 6px; border-radius: 3px; transition: width 0.4s; }
+    .score-val { width: 42px; text-align: right; font-size: 12px; font-weight: 600; }
+
+    /* ── DLQ breakdown ── */
+    .dlq-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid #21262d;
+    }
+    .dlq-row:last-child { border-bottom: none; }
+    .dlq-cat  { flex: 1; font-size: 12px; color: #c9d1d9; }
+    .dlq-bar-wrap { width: 110px; height: 5px; background: #21262d; border-radius: 2px; }
+    .dlq-bar  { height: 5px; border-radius: 2px; background: #f85149; transition: width 0.4s; }
+    .dlq-count { width: 28px; text-align: right; font-size: 12px; color: #8b949e; }
+
+    /* ── Curve table ── */
+    .curve-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .curve-tile {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .curve-tile .inst  { font-size: 13px; font-weight: 700; color: #58a6ff; }
+    .curve-tile .price { font-size: 18px; font-weight: 700; color: #f0f6fc; margin: 4px 0; }
+    .curve-tile .meta  { font-size: 10px; color: #6e7681; }
+    .curve-tile .qs    { font-size: 10px; margin-top: 4px; }
+
+    /* ── Recent DLQ events ── */
+    .event-row {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid #21262d;
+      align-items: flex-start;
+    }
+    .event-row:last-child { border-bottom: none; }
+    .event-time { font-size: 10px; color: #6e7681; white-space: nowrap; min-width: 44px; }
+    .event-body { flex: 1; }
+    .event-reason { font-size: 11px; color: #8b949e; margin-top: 1px; }
+
+    /* ── Refresh bar ── */
+    #refresh-bar-wrap {
+      height: 2px;
+      background: #21262d;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+    #refresh-bar {
+      height: 2px;
+      background: #58a6ff;
+      width: 100%;
+      transition: width linear;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6e7681;
+      padding: 4px 24px 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span>MDRP</span> &nbsp;Market Data Reliability Platform &nbsp;<span style="color:#6e7681;font-weight:400">/ ops dashboard</span></h1>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span><span id="status-dot"></span><span id="overall-status" style="font-size:12px;color:#3fb950">HEALTHY</span></span>
+    <span id="last-updated" style="color:#6e7681">Loading...</span>
+  </div>
+</header>
+
+<!-- KPI row -->
+<div class="grid" style="padding-top:16px">
+  <div class="card kpi">
+    <div class="value" id="kpi-eps">--</div>
+    <div class="label">Events / sec (raw)</div>
+    <div class="sub" id="kpi-val-rate">-- % validated</div>
+  </div>
+  <div class="card kpi">
+    <div class="value" id="kpi-dlq">--</div>
+    <div class="label">DLQ events (last 1h)</div>
+    <div class="sub" id="kpi-dlq-total">-- total in queue</div>
+  </div>
+  <div class="card kpi">
+    <div class="value" id="kpi-snapshots">--</div>
+    <div class="label">Gold snapshots today</div>
+    <div class="sub" id="kpi-cache">-- % cache hit rate</div>
+  </div>
+  <div class="card kpi">
+    <div class="value" id="kpi-lag">--</div>
+    <div class="label">Max consumer lag</div>
+    <div class="sub" id="kpi-replay">replay engine idle</div>
+  </div>
+</div>
+
+<!-- Pipeline + Kafka -->
+<div class="grid grid-2" style="padding-top:0">
+  <div class="card">
+    <div class="card-title">Pipeline Services</div>
+    <div id="services-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Kafka Topics</div>
+    <div id="topics-list"></div>
+  </div>
+</div>
+
+<!-- Providers + DLQ breakdown -->
+<div class="grid grid-2" style="padding-top:0">
+  <div class="card">
+    <div class="card-title">Provider Quality Scores</div>
+    <div id="providers-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">DLQ Breakdown by Category</div>
+    <div id="dlq-breakdown"></div>
+  </div>
+</div>
+
+<!-- Forward curves -->
+<div style="padding: 0 24px 12px">
+  <div class="card">
+    <div class="card-title">Forward Curves &mdash; Serving Cache (front tenor)</div>
+    <div class="curve-grid" id="curves-grid"></div>
+  </div>
+</div>
+
+<!-- Recent DLQ events -->
+<div style="padding: 0 24px 28px">
+  <div class="card">
+    <div class="card-title">Recent DLQ Events</div>
+    <div id="dlq-events-list"></div>
+  </div>
+</div>
+
+<div id="refresh-bar-wrap"><div id="refresh-bar"></div></div>
+
+<script>
+  const API = 'http://localhost:8007';
+  const REFRESH_MS = 8000;
+
+  const INSTRUMENTS = ['TTF', 'NBP', 'BRENT', 'WTI', 'EU_ETS'];
+
+  function scoreColor(s) {
+    if (s >= 0.97) return '#3fb950';
+    if (s >= 0.94) return '#d29922';
+    return '#f85149';
+  }
+
+  function badgeClass(status) {
+    if (status === 'healthy' || status === 'active') return 'badge-green';
+    if (status === 'idle') return 'badge-blue';
+    if (status === 'degraded') return 'badge-yellow';
+    return 'badge-red';
+  }
+
+  function timeAgo(iso) {
+    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (diff < 60) return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    return Math.floor(diff / 3600) + 'h ago';
+  }
+
+  function catLabel(cat) {
+    return {
+      schema_violation: 'Schema violation',
+      duplicate: 'Duplicate',
+      stale_data: 'Stale data',
+      malformed_payload: 'Malformed payload',
+      out_of_order: 'Out of order',
+    }[cat] || cat;
+  }
+
+  async function fetchAll() {
+    const [pipeline, providers, dlqSummary, dlqEvents, ...curveResults] = await Promise.all([
+      fetch(`${API}/health/pipeline`).then(r => r.json()),
+      fetch(`${API}/health/providers`).then(r => r.json()),
+      fetch(`${API}/dlq/summary`).then(r => r.json()),
+      fetch(`${API}/dlq/events?limit=8`).then(r => r.json()),
+      ...INSTRUMENTS.map(i => fetch(`${API}/curves/${i}_FORWARD`).then(r => r.json())),
+    ]);
+    return { pipeline, providers, dlqSummary, dlqEvents, curves: curveResults };
+  }
+
+  function renderPipeline(pipeline) {
+    // KPIs
+    const rawEps = pipeline.kafka_topics['market.events.raw'].throughput_eps;
+    document.getElementById('kpi-eps').textContent = rawEps.toFixed(1);
+    document.getElementById('kpi-val-rate').textContent =
+      pipeline.services['validation-service'].validation_rate_pct.toFixed(1) + '% validated';
+    document.getElementById('kpi-dlq').textContent = pipeline.dlq_last_1h;
+    document.getElementById('kpi-snapshots').textContent =
+      pipeline.services['gold-loader'].snapshots_today;
+    document.getElementById('kpi-cache').textContent =
+      pipeline.services['redis-writer'].cache_hit_rate_pct + '% cache hit rate';
+
+    const lags = Object.values(pipeline.kafka_topics).map(t => t.lag);
+    const maxLag = Math.max(...lags);
+    const lagEl = document.getElementById('kpi-lag');
+    lagEl.textContent = maxLag;
+    lagEl.className = 'value' + (maxLag > 10 ? ' bad' : maxLag > 3 ? ' warn' : '');
+
+    const replayStatus = pipeline.services['replay-engine'].status;
+    document.getElementById('kpi-replay').textContent =
+      'replay engine ' + replayStatus;
+
+    // Overall status
+    const overall = pipeline.overall;
+    const dot = document.getElementById('status-dot');
+    const statusEl = document.getElementById('overall-status');
+    if (overall === 'healthy') {
+      dot.style.background = '#3fb950'; statusEl.style.color = '#3fb950';
+      statusEl.textContent = 'HEALTHY';
+    } else {
+      dot.style.background = '#f85149'; statusEl.style.color = '#f85149';
+      statusEl.textContent = 'DEGRADED';
+    }
+
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+
+    // Services list
+    const svcEl = document.getElementById('services-list');
+    svcEl.innerHTML = Object.entries(pipeline.services).map(([name, svc]) => {
+      const metaKey = Object.keys(svc).find(k => k !== 'status');
+      const metaVal = metaKey ? `${svc[metaKey]}` : '';
+      const metaLabel = metaKey ? metaKey.replace(/_/g, ' ') : '';
+      return `
+        <div class="service-row">
+          <span class="service-name">${name}</span>
+          <span class="service-meta">${metaLabel}: <b style="color:#c9d1d9">${metaVal}</b></span>
+          <span class="badge ${badgeClass(svc.status)}">${svc.status}</span>
+        </div>`;
+    }).join('');
+
+    // Topics
+    const topicEl = document.getElementById('topics-list');
+    const maxEps = Math.max(...Object.values(pipeline.kafka_topics).map(t => t.throughput_eps));
+    topicEl.innerHTML = Object.entries(pipeline.kafka_topics).map(([name, t]) => {
+      const barW = maxEps > 0 ? Math.round((t.throughput_eps / maxEps) * 100) : 0;
+      const lagColor = t.lag > 10 ? '#f85149' : t.lag > 3 ? '#d29922' : '#3fb950';
+      return `
+        <div class="topic-row">
+          <span class="topic-name">${name.replace('market.events.', '')}</span>
+          <div class="lag-bar-wrap"><div class="lag-bar" style="width:${barW}%;background:${lagColor}"></div></div>
+          <span class="topic-eps">${t.throughput_eps.toFixed(1)} eps</span>
+          <span class="badge ${t.lag === 0 ? 'badge-green' : 'badge-yellow'}" style="min-width:36px;text-align:center">lag ${t.lag}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function renderProviders(providers) {
+    const list = Array.isArray(providers) ? providers : providers.value;
+    document.getElementById('providers-list').innerHTML = list.map(p => {
+      const pct = Math.round(p.quality_score * 100);
+      const col = scoreColor(p.quality_score);
+      return `
+        <div class="provider-row">
+          <span class="provider-name">${p.provider}</span>
+          <div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%;background:${col}"></div></div>
+          <span class="score-val" style="color:${col}">${p.quality_score.toFixed(3)}</span>
+          <span class="badge badge-green">${p.uptime_pct_today.toFixed(1)}% up</span>
+        </div>`;
+    }).join('');
+  }
+
+  function renderDLQ(dlqSummary, dlqEvents) {
+    document.getElementById('kpi-dlq-total').textContent =
+      dlqSummary.total_events + ' total (' + dlqSummary.unreplayed + ' unreplayed)';
+
+    const cats = dlqSummary.by_category;
+    const maxCount = Math.max(...Object.values(cats));
+    document.getElementById('dlq-breakdown').innerHTML = Object.entries(cats)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, count]) => {
+        const w = Math.round((count / maxCount) * 100);
+        return `
+          <div class="dlq-row">
+            <span class="dlq-cat">${catLabel(cat)}</span>
+            <div class="dlq-bar-wrap"><div class="dlq-bar" style="width:${w}%"></div></div>
+            <span class="dlq-count">${count}</span>
+          </div>`;
+      }).join('');
+
+    const events = dlqEvents.events || [];
+    document.getElementById('dlq-events-list').innerHTML = events.map(e => `
+      <div class="event-row">
+        <span class="event-time">${timeAgo(e.received_at)}</span>
+        <div class="event-body">
+          <span class="badge ${badgeClass('error')} badge-red">${catLabel(e.failure_category)}</span>
+          &nbsp;<span style="font-size:11px;color:#8b949e">${e.provider}</span>
+          <div class="event-reason">${e.failure_reason}</div>
+        </div>
+        <span class="badge ${e.replayed ? 'badge-blue' : 'badge-yellow'}">${e.replayed ? 'replayed' : 'pending'}</span>
+      </div>`).join('');
+  }
+
+  function renderCurves(curves) {
+    const currencies = { TTF: 'EUR/MWh', NBP: 'EUR/MWh', BRENT: 'USD/bbl', WTI: 'USD/bbl', EU_ETS: 'EUR/t' };
+    document.getElementById('curves-grid').innerHTML = curves.map(c => {
+      const firstTenor = Object.entries(c.tenors)[0];
+      if (!firstTenor) return '';
+      const [tenor, data] = firstTenor;
+      const col = scoreColor(data.quality_score);
+      return `
+        <div class="curve-tile">
+          <div class="inst">${c.instrument}</div>
+          <div class="price">${data.price.toFixed(2)}</div>
+          <div class="meta">${currencies[c.instrument] || ''} &nbsp;|&nbsp; ${tenor}</div>
+          <div class="qs" style="color:${col}">QS ${data.quality_score.toFixed(3)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  async function refresh() {
+    try {
+      const data = await fetchAll();
+      renderPipeline(data.pipeline);
+      renderProviders(data.providers);
+      renderDLQ(data.dlqSummary, data.dlqEvents);
+      renderCurves(data.curves);
+    } catch (e) {
+      document.getElementById('overall-status').textContent = 'API UNREACHABLE';
+      document.getElementById('status-dot').style.background = '#f85149';
+    }
+  }
+
+  // Countdown bar
+  function startBar() {
+    const bar = document.getElementById('refresh-bar');
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    setTimeout(() => {
+      bar.style.transition = `width ${REFRESH_MS}ms linear`;
+      bar.style.width = '0%';
+    }, 50);
+  }
+
+  refresh();
+  startBar();
+  setInterval(() => { refresh(); startBar(); }, REFRESH_MS);
+</script>
+</body>
+</html>
