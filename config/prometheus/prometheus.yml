@@ -1,0 +1,122 @@
+# ============================================================
+# Prometheus Configuration
+# Market Data Reliability Platform
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    environment: local
+    platform: market-data-reliability
+
+# AlertManager integration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+      api_version: v2
+
+# Alert rules
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+# ============================================================
+# Scrape configurations
+# ============================================================
+scrape_configs:
+
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+    metrics_path: /metrics
+
+  # AlertManager
+  - job_name: alertmanager
+    static_configs:
+      - targets:
+          - alertmanager:9093
+    metrics_path: /metrics
+
+  # ----------------------------------------------------------
+  # Redpanda broker metrics
+  # ----------------------------------------------------------
+  - job_name: redpanda
+    static_configs:
+      - targets:
+          - redpanda:9644
+        labels:
+          service: redpanda
+          component: broker
+    metrics_path: /metrics
+
+  # ----------------------------------------------------------
+  # Application services
+  # ----------------------------------------------------------
+  - job_name: provider-emulator
+    static_configs:
+      - targets:
+          - provider-emulator:8001
+        labels:
+          service: provider-emulator
+          component: application
+    metrics_path: /metrics
+
+  - job_name: validation-service
+    static_configs:
+      - targets:
+          - validation-service:8002
+        labels:
+          service: validation-service
+          component: application
+    metrics_path: /metrics
+
+  - job_name: bronze-writer
+    static_configs:
+      - targets:
+          - bronze-writer:8003
+        labels:
+          service: bronze-writer
+          component: application
+    metrics_path: /metrics
+
+  - job_name: normalization-service
+    static_configs:
+      - targets:
+          - normalization-service:8004
+        labels:
+          service: normalization-service
+          component: application
+    metrics_path: /metrics
+
+  - job_name: redis-writer
+    static_configs:
+      - targets:
+          - redis-writer:8005
+        labels:
+          service: redis-writer
+          component: application
+    metrics_path: /metrics
+
+  - job_name: replay-engine
+    static_configs:
+      - targets:
+          - replay-engine:8006
+        labels:
+          service: replay-engine
+          component: application
+    metrics_path: /metrics
+
+  - job_name: ops-api
+    static_configs:
+      - targets:
+          - ops-api:8007
+        labels:
+          service: ops-api
+          component: application
+    metrics_path: /metrics

@@ -1,0 +1,100 @@
+# ============================================================
+# AlertManager Configuration
+# Market Data Reliability Platform
+# ============================================================
+
+global:
+  resolve_timeout: 5m
+  # Default HTTP client settings for webhooks
+  http_config:
+    follow_redirects: true
+
+# ============================================================
+# Routing tree
+# ============================================================
+route:
+  # Default receiver for anything not matched below
+  receiver: ops-api-webhook
+
+  # Group alerts by alertname + component so related alerts
+  # fire together rather than flooding the channel.
+  group_by:
+    - alertname
+    - component
+    - severity
+
+  # Default timing for warning-class alerts
+  group_wait: 5m
+  group_interval: 10m
+  repeat_interval: 1h
+
+  routes:
+    # ----------------------------------------------------------
+    # Critical alerts — immediate notification, no grouping wait
+    # ----------------------------------------------------------
+    - match:
+        severity: critical
+      receiver: ops-api-webhook
+      group_wait: 0s
+      group_interval: 2m
+      repeat_interval: 15m
+      continue: false
+
+    # ----------------------------------------------------------
+    # Warning alerts — 5-minute group wait, hourly repeat
+    # ----------------------------------------------------------
+    - match:
+        severity: warning
+      receiver: ops-api-webhook
+      group_wait: 5m
+      group_interval: 10m
+      repeat_interval: 1h
+      continue: false
+
+    # ----------------------------------------------------------
+    # Inhibited / silenced alerts go to null sink
+    # ----------------------------------------------------------
+    - match:
+        inhibited: "true"
+      receiver: null
+      continue: false
+
+# ============================================================
+# Receivers
+# ============================================================
+receivers:
+  # Webhook receiver: posts alert payload to ops-api which
+  # routes to Microsoft Teams and/or email depending on severity.
+  - name: ops-api-webhook
+    webhook_configs:
+      - url: "http://ops-api:8000/api/v1/alerts/webhook"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        # Alert payload is JSON — ops-api parses and routes it
+        max_alerts: 50
+
+  # Null sink — alerts routed here are silently dropped
+  - name: "null"
+
+# ============================================================
+# Inhibition rules
+# ============================================================
+# If a critical alert is firing for a given component, suppress
+# any warning-severity alerts for the same component. This
+# prevents alert storms during major incidents.
+inhibit_rules:
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    # Suppress warnings when a critical fires for the same component
+    equal:
+      - component
+    # If no component label, fall back to alertname grouping
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal:
+      - alertname

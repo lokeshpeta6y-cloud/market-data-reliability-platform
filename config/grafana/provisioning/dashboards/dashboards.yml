@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: "MDRP Dashboards"
+    orgId: 1
+    folder: "Market Data Reliability Platform"
+    folderUid: "mdrp"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

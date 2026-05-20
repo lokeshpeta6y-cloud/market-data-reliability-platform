@@ -1,0 +1,116 @@
+groups:
+  - name: infrastructure.health
+    interval: 30s
+    rules:
+
+      # --------------------------------------------------------
+      # RedisDown — Redis is unreachable
+      # --------------------------------------------------------
+      - alert: RedisDown
+        expr: |
+          up{job="redis-exporter"} == 0
+          or
+          absent(up{job="redis-exporter"})
+          or
+          redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+          team: platform
+        annotations:
+          summary: "Redis is DOWN"
+          description: >
+            Redis instance is unreachable or reporting unhealthy. All services that
+            depend on Redis for hot-cache reads (redis-writer, ops-api, replay-engine)
+            will be degraded. Immediate intervention required.
+          runbook: "https://wiki.example.com/runbooks/redis-down"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # RedpandaBrokerDown — Redpanda broker is unhealthy
+      # --------------------------------------------------------
+      - alert: RedpandaBrokerDown
+        expr: |
+          up{job="redpanda"} == 0
+          or
+          absent(up{job="redpanda"})
+        for: 1m
+        labels:
+          severity: critical
+          component: redpanda
+          team: platform
+        annotations:
+          summary: "Redpanda broker is DOWN or not scraping"
+          description: >
+            Prometheus cannot reach the Redpanda metrics endpoint at redpanda:9644.
+            The Kafka broker may be down or starting. All pipeline services will
+            lose the ability to produce and consume events until this is resolved.
+          runbook: "https://wiki.example.com/runbooks/redpanda-down"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # SnowflakeLoadFailure — Snowflake load errors detected
+      # --------------------------------------------------------
+      - alert: SnowflakeLoadFailure
+        expr: |
+          increase(mdrp_snowflake_load_failures_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: snowflake
+          team: platform
+        annotations:
+          summary: "Snowflake load failure — {{ $value | humanize }} failures in 15 min"
+          description: >
+            {{ $value | humanize }} Snowflake load operation(s) have failed in the last
+            15 minutes. Bronze-to-Silver pipeline may be accumulating backlog. Check
+            Snowflake stage and COPY INTO errors in the bronze-writer logs.
+          runbook: "https://wiki.example.com/runbooks/snowflake-load-failure"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # HighBronzeWriteLatency — p95 bronze write latency > 5s
+      # --------------------------------------------------------
+      - alert: HighBronzeWriteLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(mdrp_bronze_write_latency_seconds_bucket[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: bronze-writer
+          team: platform
+        annotations:
+          summary: "Bronze write p95 latency is {{ $value | humanizeDuration }}"
+          description: >
+            The 95th-percentile latency for writing events to MinIO Bronze storage
+            has been above 5 seconds for the past 5 minutes (current: {{ $value | humanizeDuration }}).
+            MinIO may be under load or experiencing I/O issues. Consumer lag
+            will increase if this is not addressed.
+          runbook: "https://wiki.example.com/runbooks/bronze-write-latency"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # MinIODown — MinIO object store is unreachable
+      # --------------------------------------------------------
+      - alert: MinIODown
+        expr: |
+          probe_success{job="blackbox-minio"} == 0
+          or
+          absent(mdrp_bronze_writes_total) and absent(up{job="minio"})
+        for: 2m
+        labels:
+          severity: critical
+          component: minio
+          team: platform
+        annotations:
+          summary: "MinIO object store is DOWN"
+          description: >
+            MinIO is unreachable. Bronze writes will fail and the replay engine
+            will be unable to read historical data. bronze-writer service will
+            begin accumulating errors immediately. Check MinIO container health.
+          runbook: "https://wiki.example.com/runbooks/minio-down"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"

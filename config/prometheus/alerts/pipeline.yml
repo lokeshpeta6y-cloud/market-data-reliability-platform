@@ -1,0 +1,170 @@
+groups:
+  - name: pipeline.health
+    interval: 30s
+    rules:
+
+      # --------------------------------------------------------
+      # ProviderOutage — no events ingested from a provider
+      # for more than 2 minutes.
+      # --------------------------------------------------------
+      - alert: ProviderOutage
+        expr: |
+          (
+            time() - max by (provider) (
+              last_over_time(mdrp_provider_last_event_timestamp_seconds[5m])
+            )
+          ) > 120
+        for: 2m
+        labels:
+          severity: critical
+          team: market-data
+        annotations:
+          summary: "Provider {{ $labels.provider }} has stopped emitting events"
+          description: >
+            No events have been received from provider {{ $labels.provider }} for
+            more than 2 minutes. Last event was {{ $value | humanizeDuration }} ago.
+            Check provider connectivity and the emulator logs.
+          runbook: "https://wiki.example.com/runbooks/provider-outage"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # DLQSpike — elevated DLQ event rate (warning threshold)
+      # --------------------------------------------------------
+      - alert: DLQSpike
+        expr: |
+          rate(mdrp_dlq_events_total[5m]) * 60 > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: market-data
+        annotations:
+          summary: "DLQ event rate elevated — {{ $value | humanize }} events/min"
+          description: >
+            Dead-letter queue is receiving {{ $value | humanize }} events per minute
+            (threshold: 5/min), sustained for 5 minutes. Investigate validation
+            failures or schema mismatches.
+          runbook: "https://wiki.example.com/runbooks/dlq-spike"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # DLQCritical — critical DLQ event rate
+      # --------------------------------------------------------
+      - alert: DLQCritical
+        expr: |
+          rate(mdrp_dlq_events_total[1m]) * 60 > 20
+        for: 0m
+        labels:
+          severity: critical
+          team: market-data
+        annotations:
+          summary: "CRITICAL: DLQ event rate at {{ $value | humanize }} events/min"
+          description: >
+            Dead-letter queue is receiving {{ $value | humanize }} events per minute,
+            exceeding the critical threshold of 20/min. Pipeline integrity is at risk.
+            Immediate investigation required.
+          runbook: "https://wiki.example.com/runbooks/dlq-critical"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # ConsumerLagHigh — Kafka consumer lag warning
+      # --------------------------------------------------------
+      - alert: ConsumerLagHigh
+        expr: |
+          mdrp_consumer_lag_messages > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: market-data
+        annotations:
+          summary: "Consumer lag high on {{ $labels.topic }}/{{ $labels.consumer_group }}"
+          description: >
+            Consumer group {{ $labels.consumer_group }} is lagging {{ $value | humanize }}
+            messages behind on topic {{ $labels.topic }} (threshold: 10,000).
+            Consumer may be under-scaled or processing too slowly.
+          runbook: "https://wiki.example.com/runbooks/consumer-lag"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # ConsumerLagCritical — Kafka consumer lag critical
+      # --------------------------------------------------------
+      - alert: ConsumerLagCritical
+        expr: |
+          mdrp_consumer_lag_messages > 50000
+        for: 2m
+        labels:
+          severity: critical
+          team: market-data
+        annotations:
+          summary: "CRITICAL: Consumer lag {{ $value | humanize }} on {{ $labels.topic }}"
+          description: >
+            Consumer group {{ $labels.consumer_group }} has {{ $value | humanize }} messages
+            of lag on topic {{ $labels.topic }}, exceeding critical threshold of 50,000.
+            Pipeline is significantly behind real-time. Immediate scaling action required.
+          runbook: "https://wiki.example.com/runbooks/consumer-lag-critical"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # StaleCurveData — instrument has not received new data
+      # for more than 10 minutes
+      # --------------------------------------------------------
+      - alert: StaleCurveData
+        expr: |
+          (
+            time() - max by (instrument, provider) (
+              last_over_time(mdrp_instrument_last_event_timestamp_seconds[15m])
+            )
+          ) > 600
+        for: 0m
+        labels:
+          severity: warning
+          team: market-data
+        annotations:
+          summary: "Stale data for instrument {{ $labels.instrument }} from {{ $labels.provider }}"
+          description: >
+            Instrument {{ $labels.instrument }} (provider: {{ $labels.provider }}) has
+            not received updated data for {{ $value | humanizeDuration }}.
+            Threshold is 10 minutes. Data consumers may be using stale curve data.
+          runbook: "https://wiki.example.com/runbooks/stale-curve-data"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # HighMalformedRate — more than 5% of events are malformed
+      # --------------------------------------------------------
+      - alert: HighMalformedRate
+        expr: |
+          (
+            rate(mdrp_malformed_events_total[5m])
+            /
+            (rate(mdrp_events_ingested_total[5m]) + 1e-9)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: market-data
+        annotations:
+          summary: "Malformed event rate {{ $value | humanizePercentage }} for {{ $labels.provider }}"
+          description: >
+            Provider {{ $labels.provider }} has {{ $value | humanizePercentage }} of events
+            failing payload validation, sustained for 5 minutes (threshold: 5%).
+            Schema drift or provider-side encoding issue suspected.
+          runbook: "https://wiki.example.com/runbooks/malformed-events"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
+
+      # --------------------------------------------------------
+      # ReplayJobFailed — any replay job has failed
+      # --------------------------------------------------------
+      - alert: ReplayJobFailed
+        expr: |
+          increase(mdrp_replay_jobs_total{outcome="failed"}[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: market-data
+        annotations:
+          summary: "Replay job failure detected ({{ $value | humanize }} failures in 10 min)"
+          description: >
+            {{ $value | humanize }} replay job(s) have failed in the last 10 minutes.
+            Check replay-engine logs for errors. Affected jobs may need to be
+            re-submitted via the ops-api.
+          runbook: "https://wiki.example.com/runbooks/replay-job-failed"
+          dashboard: "http://grafana:3000/d/mdrp-pipeline-overview"
