@@ -1,0 +1,513 @@
+version: "3.8"
+
+# ============================================================
+# Market Data Reliability Platform — Docker Compose
+# ============================================================
+
+networks:
+  mdrp-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  minio-data:
+  grafana-data:
+
+# ============================================================
+# INFRASTRUCTURE SERVICES
+# ============================================================
+services:
+
+  # ----------------------------------------------------------
+  # Redpanda (Kafka-compatible broker, KRaft mode)
+  # ----------------------------------------------------------
+  redpanda:
+    image: redpandadata/redpanda:v24.1.1
+    container_name: redpanda
+    hostname: redpanda
+    networks:
+      - mdrp-network
+    ports:
+      - "9092:9092"   # Kafka API
+      - "9644:9644"   # Redpanda admin / Prometheus metrics
+      - "8081:8081"   # Schema Registry
+      - "9645:9645"   # Pandaproxy (REST)
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:9092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:9092
+      - --pandaproxy-addr internal://0.0.0.0:9645,external://0.0.0.0:9645
+      - --advertise-pandaproxy-addr internal://redpanda:9645,external://localhost:9645
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:8081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --mode dev-container
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --check=false
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Redpanda topic initialisation (one-shot)
+  # ----------------------------------------------------------
+  redpanda-init:
+    image: redpandadata/redpanda:v24.1.1
+    container_name: redpanda-init
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo "Creating Kafka topics..."
+        rpk topic create market.events.raw        --brokers redpanda:9092 --partitions 6 --replicas 1 || true
+        rpk topic create market.events.validated  --brokers redpanda:9092 --partitions 6 --replicas 1 || true
+        rpk topic create market.events.normalized --brokers redpanda:9092 --partitions 6 --replicas 1 || true
+        rpk topic create market.events.replay     --brokers redpanda:9092 --partitions 3 --replicas 1 || true
+        rpk topic create market.events.dlq        --brokers redpanda:9092 --partitions 3 --replicas 1 || true
+        echo "Topic listing:"
+        rpk topic list --brokers redpanda:9092
+        echo "Topic initialisation complete."
+    restart: "no"
+
+  # ----------------------------------------------------------
+  # Redis
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    hostname: redis
+    networks:
+      - mdrp-network
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # MinIO (S3-compatible object store — Bronze layer)
+  # ----------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    hostname: minio
+    networks:
+      - mdrp-network
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: mdrp
+      MINIO_ROOT_PASSWORD: mdrp_secret_local
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # MinIO bucket initialisation (one-shot)
+  # ----------------------------------------------------------
+  minio-init:
+    image: minio/mc
+    container_name: minio-init
+    networks:
+      - mdrp-network
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Configuring MinIO client..."
+        mc alias set local http://minio:9000 mdrp mdrp_secret_local
+        echo "Creating bucket mdrp-bronze..."
+        mc mb --ignore-existing local/mdrp-bronze
+        mc mb --ignore-existing local/mdrp-replay
+        echo "Setting bucket policies..."
+        mc anonymous set none local/mdrp-bronze
+        mc anonymous set none local/mdrp-replay
+        echo "MinIO initialisation complete."
+    restart: "no"
+
+  # ----------------------------------------------------------
+  # Prometheus
+  # ----------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    hostname: prometheus
+    networks:
+      - mdrp-network
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/alerts:/etc/prometheus/alerts:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+      - "--log.level=info"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Grafana
+  # ----------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    hostname: grafana
+    networks:
+      - mdrp-network
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./config/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./config/grafana/dashboards:/etc/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: mdrp_grafana
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+      GF_ALERTING_ENABLED: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # AlertManager
+  # ----------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    hostname: alertmanager
+    networks:
+      - mdrp-network
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--log.level=info"
+      - "--web.external-url=http://localhost:9093"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Jaeger (all-in-one — distributed tracing)
+  # ----------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: jaeger
+    hostname: jaeger
+    networks:
+      - mdrp-network
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: memory
+      MEMORY_MAX_TRACES: "50000"
+    restart: unless-stopped
+
+  # ============================================================
+  # APPLICATION SERVICES
+  # ============================================================
+
+  # ----------------------------------------------------------
+  # Provider Emulator — injects synthetic market events
+  # ----------------------------------------------------------
+  provider-emulator:
+    build:
+      context: services/provider-emulator
+      dockerfile: Dockerfile
+    container_name: provider-emulator
+    hostname: provider-emulator
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8001"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: provider-emulator
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Validation Service
+  # ----------------------------------------------------------
+  validation-service:
+    build:
+      context: services/validation-service
+      dockerfile: Dockerfile
+    container_name: validation-service
+    hostname: validation-service
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8002"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: validation-service
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Bronze Writer — persists raw events to MinIO
+  # ----------------------------------------------------------
+  bronze-writer:
+    build:
+      context: services/bronze-writer
+      dockerfile: Dockerfile
+    container_name: bronze-writer
+    hostname: bronze-writer
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8003"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: bronze-writer
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Normalization Service
+  # ----------------------------------------------------------
+  normalization-service:
+    build:
+      context: services/normalization-service
+      dockerfile: Dockerfile
+    container_name: normalization-service
+    hostname: normalization-service
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8004"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: normalization-service
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Redis Writer — pushes normalized data to Redis hot cache
+  # ----------------------------------------------------------
+  redis-writer:
+    build:
+      context: services/redis-writer
+      dockerfile: Dockerfile
+    container_name: redis-writer
+    hostname: redis-writer
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8005"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: redis-writer
+    ports:
+      - "8005:8005"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Replay Engine — replays historical data on demand
+  # ----------------------------------------------------------
+  replay-engine:
+    build:
+      context: services/replay-engine
+      dockerfile: Dockerfile
+    container_name: replay-engine
+    hostname: replay-engine
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8006"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: replay-engine
+    ports:
+      - "8006:8006"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Ops API — REST API for operations, alert routing
+  # ----------------------------------------------------------
+  ops-api:
+    build:
+      context: services/ops-api
+      dockerfile: Dockerfile
+    container_name: ops-api
+    hostname: ops-api
+    networks:
+      - mdrp-network
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mdrp
+      AWS_SECRET_ACCESS_KEY: mdrp_secret_local
+      METRICS_PORT: "8007"
+      HTTP_PORT: "8000"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: ops-api
+    ports:
+      - "8000:8000"   # HTTP API
+      - "8007:8007"   # Prometheus metrics
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
