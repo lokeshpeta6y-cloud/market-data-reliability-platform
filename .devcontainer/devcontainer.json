@@ -1,0 +1,44 @@
+{
+  "name": "Market Data Reliability Platform",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    }
+  },
+  "forwardPorts": [3000, 8000, 8080, 9090, 9001, 9644, 16686],
+  "portsAttributes": {
+    "3000":  { "label": "Grafana",          "onAutoForward": "notify" },
+    "8000":  { "label": "Ops API",          "onAutoForward": "notify" },
+    "9090":  { "label": "Prometheus",       "onAutoForward": "silent" },
+    "9001":  { "label": "MinIO Console",    "onAutoForward": "silent" },
+    "9644":  { "label": "Redpanda Admin",   "onAutoForward": "silent" },
+    "16686": { "label": "Jaeger UI",        "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "cp .env.example .env",
+  "postStartCommand": "docker compose pull --quiet 2>/dev/null || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "hashicorp.terraform",
+        "grafana.vscode-jsonnet"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  }
+}
