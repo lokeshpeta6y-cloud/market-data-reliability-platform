@@ -1,0 +1,119 @@
+# ============================================================
+# Redpanda Configuration — Single-broker local development
+# Market Data Reliability Platform
+#
+# This file documents the Redpanda broker settings.
+# In Docker Compose the broker is configured via CLI flags;
+# this file serves as the reference and can be bind-mounted
+# if switching to a non-container deployment.
+# ============================================================
+
+redpanda:
+  # --------------------------------------------------------
+  # Node identity
+  # --------------------------------------------------------
+  node_id: 0
+  empty_seed_starts_cluster: true
+
+  # --------------------------------------------------------
+  # Data directory
+  # --------------------------------------------------------
+  data_directory: /var/lib/redpanda/data
+
+  # --------------------------------------------------------
+  # Kafka API listeners
+  # internal — used by Docker-networked services
+  # external — used by host-side tooling (rpk, kcat, etc.)
+  # --------------------------------------------------------
+  kafka_api:
+    - name: internal
+      address: 0.0.0.0
+      port: 9092
+    - name: external
+      address: 0.0.0.0
+      port: 9092
+
+  advertised_kafka_api:
+    - name: internal
+      address: redpanda
+      port: 9092
+    - name: external
+      address: localhost
+      port: 9092
+
+  # --------------------------------------------------------
+  # RPC (inter-broker, controller)
+  # --------------------------------------------------------
+  rpc_server:
+    address: 0.0.0.0
+    port: 33145
+
+  advertised_rpc_api:
+    address: redpanda
+    port: 33145
+
+  # --------------------------------------------------------
+  # Admin API (used by rpk, health checks, Prometheus scrape)
+  # --------------------------------------------------------
+  admin:
+    - address: 0.0.0.0
+      port: 9644
+
+  # --------------------------------------------------------
+  # Developer / resource settings for local single-node use
+  # --------------------------------------------------------
+  developer_mode: true
+  auto_create_topics_enabled: false
+  delete_retention_ms: 604800000      # 7 days default retention
+  log_segment_size: 134217728         # 128 MiB segments
+  compacted_log_segment_size: 67108864
+
+  # --------------------------------------------------------
+  # Replication defaults (single node — RF=1 only)
+  # --------------------------------------------------------
+  default_topic_replications: 1
+  default_topic_partitions: 3
+  minimum_topic_replications: 1
+
+  # --------------------------------------------------------
+  # Performance tuning — constrained for local Docker
+  # --------------------------------------------------------
+  overprovisioned: true
+  smp: 1
+  memory: 512M
+  reserve_memory: 0M
+
+schema_registry:
+  schema_registry_api:
+    - address: 0.0.0.0
+      port: 8081
+      name: internal
+
+pandaproxy:
+  pandaproxy_api:
+    - address: 0.0.0.0
+      port: 9645
+      name: internal
+
+  advertised_pandaproxy_api:
+    - address: redpanda
+      port: 9645
+      name: internal
+
+# --------------------------------------------------------
+# Logging
+# --------------------------------------------------------
+rpk:
+  tune_network: false
+  tune_disk_scheduler: false
+  tune_disk_nomerges: false
+  tune_disk_write_cache: false
+  tune_disk_irq: false
+  tune_fstrim: false
+  tune_cpu: false
+  tune_aio_events: false
+  tune_clocksource: false
+  tune_swappiness: false
+  tune_transparent_hugepages: false
+  coredump_dir: /var/lib/redpanda/coredump
+  overprovisioned: true
