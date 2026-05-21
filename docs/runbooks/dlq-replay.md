@@ -30,37 +30,28 @@ Trigger a DLQ replay when **all three** of the following are true:
 ### 2a. Check overall DLQ statistics
 
 ```bash
-curl -s http://localhost:8010/api/v1/dlq/stats | python -m json.tool
+curl -s http://localhost:8000/api/v1/dlq | python -m json.tool
 ```
 
 Example response:
 
 ```json
 {
-  "total_events": 1452,
-  "by_failure_category": {
-    "schema_violation": 1100,
-    "malformed": 320,
-    "stale": 32
-  },
-  "oldest_event_at": "2026-05-20T07:14:00Z",
-  "newest_event_at": "2026-05-20T08:55:00Z",
-  "providers": ["ice-endex", "test-provider"]
+  "depth_estimate": 1452,
+  "top_failure_categories": [
+    {"category": "schema_violation", "count": 1100},
+    {"category": "malformed", "count": 320},
+    {"category": "stale", "count": 32}
+  ],
+  "recent_entries": [...],
+  "as_of": "2026-05-20T09:00:00Z"
 }
 ```
 
-### 2b. Sample individual DLQ events
+### 2b. Sample recent DLQ entries
 
 ```bash
-curl -s "http://localhost:8010/api/v1/dlq/events?limit=10&failure_category=schema_violation" \
-  | python -m json.tool
-```
-
-Filter by provider:
-
-```bash
-curl -s "http://localhost:8010/api/v1/dlq/events?provider=ice-endex&limit=10" \
-  | python -m json.tool
+curl -s "http://localhost:8000/api/v1/dlq?limit=10" | python -m json.tool
 ```
 
 Key fields to review in each DLQ event:
@@ -86,26 +77,26 @@ make dlq-replay
 ### Using curl (custom time window)
 
 ```bash
-curl -s -X POST http://localhost:8010/api/v1/replay/dlq \
+curl -s -X POST http://localhost:8000/api/v1/dlq/replay \
   -H "Content-Type: application/json" \
   -d '{
-    "source": "dlq",
     "start_time": "2026-05-20T07:00:00Z",
-    "end_time": "2026-05-20T09:00:00Z"
+    "end_time": "2026-05-20T09:00:00Z",
+    "requested_by": "on-call"
   }' | python -m json.tool
 ```
 
-### Filter by provider or failure category
+### Filter by provider or instrument
 
 ```bash
-curl -s -X POST http://localhost:8010/api/v1/replay/dlq \
+curl -s -X POST http://localhost:8000/api/v1/dlq/replay \
   -H "Content-Type: application/json" \
   -d '{
-    "source": "dlq",
     "start_time": "2026-05-20T07:00:00Z",
     "end_time": "2026-05-20T09:00:00Z",
     "provider": "ice-endex",
-    "failure_category": "schema_violation"
+    "instrument": "TTF",
+    "requested_by": "on-call"
   }' | python -m json.tool
 ```
 
@@ -131,7 +122,7 @@ Save the `job_id` for monitoring.
 
 ```bash
 JOB_ID="a1b2c3d4-..."
-curl -s "http://localhost:8010/api/v1/replay/${JOB_ID}" | python -m json.tool
+curl -s "http://localhost:8000/api/v1/replay/${JOB_ID}" | python -m json.tool
 ```
 
 The response `status` field transitions through:
@@ -176,7 +167,7 @@ Run the following in Snowflake Worksheets (replace `$START` and `$END` with the 
 ```sql
 -- Check for duplicate event_ids in Silver (should return 0 rows)
 SELECT event_id, COUNT(*) AS cnt
-FROM MARKET_DATA_PLATFORM.SILVER_EVENTS.VALIDATED_EVENTS
+FROM MARKET_DATA.SILVER_EVENTS.VALIDATED_EVENTS
 WHERE validated_at BETWEEN '$START' AND '$END'
   AND is_replay = TRUE
 GROUP BY event_id
@@ -188,7 +179,7 @@ LIMIT 20;
 ```sql
 -- Check for duplicate curve snapshots in Gold (should return 0 rows)
 SELECT curve_name, tenor, as_of, COUNT(*) AS cnt
-FROM MARKET_DATA_PLATFORM.GOLD_CURVES.FORWARD_CURVE_SNAPSHOTS
+FROM MARKET_DATA.GOLD_CURVES.FORWARD_CURVE_SNAPSHOTS
 WHERE created_at BETWEEN '$START' AND '$END'
 GROUP BY curve_name, tenor, as_of
 HAVING COUNT(*) > 1
@@ -201,7 +192,7 @@ If either query returns rows, escalate to the data engineering team — this ind
 ### Confirm replay count matches expectation
 
 ```bash
-curl -s "http://localhost:8010/api/v1/replay/${JOB_ID}" \
+curl -s "http://localhost:8000/api/v1/replay/${JOB_ID}" \
   | python -c "import sys,json; d=json.load(sys.stdin); print(f'Replayed: {d[\"events_replayed\"]} / Expected: {d.get(\"events_to_replay\",\"unknown\")}')"
 ```
 

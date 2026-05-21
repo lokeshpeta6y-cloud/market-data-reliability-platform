@@ -189,7 +189,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "100 * sum by (provider) (rate(mdrp_events_validated_total{outcome=\"pass\"}[2m])) / (sum by (provider) (rate(mdrp_events_ingested_total[2m])) + 1e-9)",
+          "expr": "100 * sum by (provider) (rate(mdrp_events_validated_total{outcome=\"passed\"}[2m])) / (sum by (provider) (rate(mdrp_events_ingested_total[2m])) + 1e-9)",
           "legendFormat": "{{ provider }}",
           "range": true,
           "refId": "A"
@@ -291,7 +291,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "mdrp_provider_quality_score",
+          "expr": "sum by (provider) (rate(mdrp_event_quality_score_sum[5m])) / sum by (provider) (rate(mdrp_event_quality_score_count[5m]))",
           "legendFormat": "{{ provider }}",
           "range": false,
           "instant": true,

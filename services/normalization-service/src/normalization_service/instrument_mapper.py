@@ -15,6 +15,7 @@ from __future__ import annotations
 _INSTRUMENT_DEFAULTS: dict[str, tuple[str, str]] = {
     "TTF": ("EUR", "MWh"),
     "NBP": ("EUR", "MWh"),
+    "TTF_POWER": ("EUR", "MWh"),
     "BRENT": ("USD", "bbl"),
     "WTI": ("USD", "bbl"),
     "EU_ETS": ("EUR", "tonne"),
@@ -32,6 +33,10 @@ _SYMBOL_MAP: dict[str, str] = {
     # Natural gas – NBP
     "NBP": "NBP",
     "NBP GAS": "NBP",
+    # Power – TTF Power (European electricity forward curve)
+    "TTF_POWER": "TTF_POWER",
+    "TTFPOWER": "TTF_POWER",
+    "EEX_POWER": "TTF_POWER",
     # Oil – Brent
     "BRENT": "BRENT",
     "BRN": "BRENT",

@@ -33,7 +33,7 @@ A gap in this counter means either:
 ### 2a. Check the ops-api provider health summary
 
 ```bash
-curl -s http://localhost:8010/api/v1/status | python -m json.tool
+curl -s http://localhost:8000/api/v1/status | python -m json.tool
 ```
 
 Or with make:
@@ -47,7 +47,7 @@ Look for `"status": "outage"` or `"status": "degraded"` under the affected provi
 ### 2b. Check per-provider health
 
 ```bash
-curl -s http://localhost:8010/api/v1/providers/<provider-name> | python -m json.tool
+curl -s http://localhost:8000/api/v1/providers/<provider-name> | python -m json.tool
 ```
 
 Key fields to review:
@@ -103,13 +103,14 @@ make replay
 Or with a custom time window:
 
 ```bash
-curl -s -X POST http://localhost:8010/api/v1/replay/bronze \
+curl -s -X POST http://localhost:8000/api/v1/replay \
   -H "Content-Type: application/json" \
   -d '{
     "source": "bronze_s3",
+    "provider": "ice-endex",
     "start_time": "2026-05-20T08:00:00Z",
     "end_time": "2026-05-20T10:00:00Z",
-    "provider": "ice-endex"
+    "requested_by": "on-call"
   }' | python -m json.tool
 ```
 
@@ -120,14 +121,15 @@ The replay engine will re-emit the events from S3 onto `market.events.replay`, w
 If neither Bronze files nor the live feed is available (e.g. the outage happened before Bronze writer ran), trigger a historical backfill from Databento:
 
 ```bash
-curl -s -X POST http://localhost:8010/api/v1/replay/databento \
+curl -s -X POST http://localhost:8000/api/v1/replay \
   -H "Content-Type: application/json" \
   -d '{
     "source": "databento_historical",
+    "provider": "databento",
+    "instrument": "TTF_CAL25",
     "start_time": "2026-05-20T08:00:00Z",
     "end_time": "2026-05-20T10:00:00Z",
-    "provider": "databento",
-    "instrument": "TTF_CAL25"
+    "requested_by": "on-call"
   }' | python -m json.tool
 ```
 
@@ -159,8 +161,7 @@ Recovery is confirmed when all panels have returned to their pre-outage baseline
 Events that were produced during degraded operation (e.g. a schema change mid-outage) may have been routed to the DLQ. Inspect them:
 
 ```bash
-curl -s http://localhost:8010/api/v1/dlq/stats | python -m json.tool
-curl -s "http://localhost:8010/api/v1/dlq/events?provider=<name>&limit=20" | python -m json.tool
+curl -s "http://localhost:8000/api/v1/dlq?limit=20" | python -m json.tool
 ```
 
 If DLQ events are recoverable (e.g. they failed due to a transient connectivity issue rather than a permanent schema change), trigger a DLQ replay:
@@ -172,10 +173,10 @@ make dlq-replay
 ### 5b. Review quality scores
 
 ```bash
-curl -s "http://localhost:8010/api/v1/providers/<name>/quality-history" | python -m json.tool
+curl -s "http://localhost:8000/api/v1/providers/<name>" | python -m json.tool
 ```
 
-Check whether the quality score degraded ahead of the outage alert — this may indicate the alert threshold should be tightened.
+Check `events_last_60s` and `last_event_at` to confirm the provider is healthy. For quality score trends, open the Grafana **Pipeline Overview** dashboard (`:3000`) and inspect the **Provider Quality Scores** panel — a dip ahead of the alert suggests the threshold should be tightened.
 
 ### 5c. File an incident report
 

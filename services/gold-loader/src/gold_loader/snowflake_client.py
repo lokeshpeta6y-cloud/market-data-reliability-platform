@@ -67,17 +67,19 @@ class SnowflakeClient:
         self,
         account: str,
         user: str,
-        password: str,
         database: str,
         schema: str,
         warehouse: str,
         stage_name: str,
+        password: str | None = None,
+        pat_token: str | None = None,
         max_reconnect_attempts: int = 3,
         reconnect_delay_seconds: float = 5.0,
     ) -> None:
         self._account = account
         self._user = user
         self._password = password
+        self._pat_token = pat_token
         self._database = database
         self._schema = schema
         self._warehouse = warehouse
@@ -101,15 +103,27 @@ class SnowflakeClient:
             schema=self._schema,
             warehouse=self._warehouse,
         )
-        self._conn = snowflake.connector.connect(
-            account=self._account,
-            user=self._user,
-            password=self._password,
-            database=self._database,
-            schema=self._schema,
-            warehouse=self._warehouse,
-            timezone="UTC",
-        )
+        if self._pat_token:
+            self._conn = snowflake.connector.connect(
+                account=self._account,
+                user=self._user,
+                authenticator="programmatic_access_token",
+                token=self._pat_token,
+                database=self._database,
+                schema=self._schema,
+                warehouse=self._warehouse,
+                timezone="UTC",
+            )
+        else:
+            self._conn = snowflake.connector.connect(
+                account=self._account,
+                user=self._user,
+                password=self._password,
+                database=self._database,
+                schema=self._schema,
+                warehouse=self._warehouse,
+                timezone="UTC",
+            )
         logger.info("snowflake_connected", account=self._account)
 
     def close(self) -> None:
@@ -250,7 +264,7 @@ class SnowflakeClient:
                             $1:version::INTEGER       AS version,
                             $1:provider::STRING       AS provider
                         FROM @{self._schema}.{self._stage_name}/{staged_file}
-                        (FILE_FORMAT => (TYPE = 'JSON'))
+                        (FILE_FORMAT => '{self._schema}.MDRP_JSON')
                     ) AS src
                     ON tgt.curve_name = src.curve_name
                        AND tgt.as_of = src.as_of

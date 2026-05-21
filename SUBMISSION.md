@@ -3,7 +3,7 @@
 **Candidate:** Lokesh  
 **Account:** YMAUZRZ-ME29964 (Snowflake) · 299582146389 (AWS)  
 **Submitted:** 2026-05-21  
-**Live stack:** `http://3.133.104.157:8000` (EC2 running, ~15 min warm-up after cold start)
+**Live stack:** `http://13.58.210.216:8000` (EC2 running, ~15 min warm-up after cold start)
 
 ---
 
@@ -71,22 +71,22 @@ The stack is deployed on AWS EC2 (`m7i-flex.large`, us-east-2). Allow ~15 minute
 
 ```bash
 # Platform health
-curl http://3.133.104.157:8000/health
+curl http://13.58.210.216:8000/health
 
 # Latest forward curves (all instruments, from Redis cache)
-curl http://3.133.104.157:8000/api/v1/curves
+curl http://13.58.210.216:8000/api/v1/curves
 
 # Single instrument
-curl http://3.133.104.157:8000/api/v1/curves/TTF
+curl http://13.58.210.216:8000/api/v1/curves/TTF
 
 # Provider health + quality scores
-curl http://3.133.104.157:8000/api/v1/providers
+curl http://13.58.210.216:8000/api/v1/providers
 
 # Dead-letter queue — live fault breakdown
-curl http://3.133.104.157:8000/api/v1/dlq
+curl http://13.58.210.216:8000/api/v1/dlq
 
 # Trigger a Bronze S3 replay (last 1 hour)
-curl -X POST http://3.133.104.157:8000/api/v1/replay \
+curl -X POST http://13.58.210.216:8000/api/v1/replay \
   -H "Content-Type: application/json" \
   -d '{"source":"bronze_s3","provider":"provider-emulator",
        "start_time":"2026-05-21T00:00:00Z",
@@ -130,7 +130,7 @@ curl -X POST http://3.133.104.157:8000/api/v1/replay \
 
 ### 2. Grafana dashboards
 
-URL: `http://3.133.104.157:3000`  
+URL: `http://13.58.210.216:3000`  
 Login: `admin` / `mdrp_grafana`
 
 **Pipeline Overview dashboard shows:**
@@ -144,7 +144,7 @@ Login: `admin` / `mdrp_grafana`
 
 ### 3. Prometheus metrics
 
-URL: `http://3.133.104.157:9090`
+URL: `http://13.58.210.216:9090`
 
 Key metrics:
 ```promql
@@ -170,7 +170,7 @@ kafka_consumer_group_lag
 
 ### 4. Jaeger distributed traces
 
-URL: `http://3.133.104.157:16686`
+URL: `http://13.58.210.216:16686`
 
 Every event carries a `trace_id` propagated end-to-end. Search for service `validation-service` or `normalization-service` to see the full event journey from ingestion through to Redis write.
 
@@ -367,7 +367,7 @@ The platform can recover from provider outages by replaying from three sources:
 
 ```bash
 # 1. Replay from Bronze S3 (reconstruct from Parquet)
-curl -X POST http://3.133.104.157:8000/api/v1/replay \
+curl -X POST http://13.58.210.216:8000/api/v1/replay \
   -H "Content-Type: application/json" \
   -d '{
     "source": "bronze_s3",
@@ -378,7 +378,7 @@ curl -X POST http://3.133.104.157:8000/api/v1/replay \
   }'
 
 # 2. Replay DLQ events (retry failed events after fixing root cause)
-curl -X POST http://3.133.104.157:8000/api/v1/dlq/replay \
+curl -X POST http://13.58.210.216:8000/api/v1/dlq/replay \
   -H "Content-Type: application/json" \
   -d '{
     "start_time": "2026-05-21T00:00:00Z",
@@ -387,7 +387,7 @@ curl -X POST http://3.133.104.157:8000/api/v1/dlq/replay \
   }'
 
 # 3. Check replay job status
-curl http://3.133.104.157:8000/api/v1/replay/{job_id}
+curl http://13.58.210.216:8000/api/v1/replay/{job_id}
 ```
 
 Replay jobs are coordinated via Redis `ZPOPMIN` — multiple replay-engine replicas cannot claim the same job. Replayed events are stamped `is_replay=true` and flow through the full validation → normalisation → Bronze/Silver/Gold pipeline again. Snowflake COPY INTO is idempotent (file-level checksum deduplication), so replay never double-counts.
@@ -494,10 +494,10 @@ A binary system loses information. A partial curve (20% of tenors missing) is no
 ## Evaluation credentials
 
 **EC2 stack (live):**
-- Ops API: `http://3.133.104.157:8000`
-- Grafana: `http://3.133.104.157:3000` — `admin` / `mdrp_grafana`
-- Prometheus: `http://3.133.104.157:9090`
-- Jaeger: `http://3.133.104.157:16686`
+- Ops API: `http://13.58.210.216:8000`
+- Grafana: `http://13.58.210.216:3000` — `admin` / `mdrp_grafana`
+- Prometheus: `http://13.58.210.216:9090`
+- Jaeger: `http://13.58.210.216:16686`
 
 **AWS (read-only — Bronze S3 + Snowflake PAT):**
 ```

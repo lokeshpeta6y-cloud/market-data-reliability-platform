@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ============================================================
+  # Lint and type-check every service + shared library
+  # ============================================================
+  lint:
+    name: Lint & Type Check (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - libs/common
+          - services/provider-emulator
+          - services/validation-service
+          - services/bronze-writer
+          - services/normalization-service
+          - services/redis-writer
+          - services/replay-engine
+          - services/ops-api
+          - services/silver-loader
+          - services/gold-loader
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install common library
+        run: pip install --no-cache-dir libs/common
+
+      - name: Install service with dev extras
+        run: |
+          cd ${{ matrix.service }}
+          pip install --no-cache-dir ".[dev]" 2>/dev/null || pip install --no-cache-dir ".[snowflake,dev]" 2>/dev/null || pip install --no-cache-dir --editable ".[dev]"
+
+      - name: Ruff lint
+        run: |
+          cd ${{ matrix.service }}
+          ruff check src/ --output-format=github
+
+      - name: Ruff format check
+        run: |
+          cd ${{ matrix.service }}
+          ruff format src/ --check
+
+      - name: Mypy type check
+        run: |
+          cd ${{ matrix.service }}
+          mypy src/ || true   # non-blocking until all stubs are complete
+
+  # ============================================================
+  # Unit tests — run the full tests/unit/ suite
+  # ============================================================
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install all service packages
+        run: |
+          pip install --no-cache-dir libs/common
+          pip install --no-cache-dir services/normalization-service
+          pip install --no-cache-dir services/validation-service
+          pip install --no-cache-dir services/bronze-writer
+          pip install --no-cache-dir services/gold-loader
+          pip install --no-cache-dir pytest pyarrow pandas
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v --tb=short
+
+  # ============================================================
+  # Docker build validation — every service image must build
+  # ============================================================
+  docker-build:
+    name: Docker Build (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - provider-emulator
+          - validation-service
+          - bronze-writer
+          - normalization-service
+          - redis-writer
+          - replay-engine
+          - ops-api
+          - silver-loader
+          - gold-loader
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.service }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: false
+          tags: mdrp/${{ matrix.service }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # Integration smoke test — full stack via Docker Compose
+  # (only on main branch pushes to save CI minutes)
+  # ============================================================
+  integration:
+    name: Integration Smoke Test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint, test, docker-build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy env template
+        run: cp .env.example .env
+
+      - name: Start infrastructure
+        run: |
+          docker compose up -d redpanda redis minio prometheus
+          docker compose up -d redpanda-init minio-init
+          docker compose up -d provider-emulator validation-service bronze-writer normalization-service redis-writer
+
+      - name: Wait for stack to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            healthy=$(docker compose ps --format json | python3 -c "
+          import sys, json
+          data = [json.loads(l) for l in sys.stdin if l.strip()]
+          unhealthy = [s['Name'] for s in data if s.get('Health') not in ('healthy','')]
+          print(len(unhealthy))
+          " 2>/dev/null || echo "99")
+            [ "$healthy" -eq 0 ] && echo "All healthy" && break
+            echo "Waiting... attempt $i"
+            sleep 10
+          done
+
+      - name: Smoke test: curves API returns data
+        run: |
+          docker compose up -d ops-api
+          sleep 20
+          curl -sf http://localhost:8000/health
+          curl -sf http://localhost:8000/api/v1/providers | grep provider-emulator
+          # Wait up to 90s for at least one curve to appear
+          for i in $(seq 1 9); do
+            count=$(curl -s http://localhost:8000/api/v1/curves | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+            [ "$count" -gt 0 ] && echo "Curves present: $count" && break
+            sleep 10
+          done
+          [ "$count" -gt 0 ] || (echo "No curves after 90s" && exit 1)
+
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose logs --tail=50

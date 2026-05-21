@@ -140,8 +140,8 @@ flowchart TD
 | redis-writer | 8005 | — | `market.events.normalized` | Redis `HSET` | Latest curve snapshot cache; provider health tracking and staleness detection |
 | replay-engine | 8006 | — | Redis jobs | `market.events.replay` | Bronze S3 replay, DLQ replay, Databento historical replay |
 | ops-api | 8007 | 8000 | Redis, Kafka | Redis jobs, Teams/SMTP | FastAPI control plane: health, replay, curves, DLQ, AlertManager webhook |
-| silver-loader | — | — | `market.events.normalized` | Snowflake `SILVER_EVENTS.CURVE_EVENTS` | Incremental COPY INTO for CurveEvent rows |
-| gold-loader | — | — | `market.events.normalized` | Snowflake `GOLD_CURVES.*` | Reconciled ForwardCurveSnapshot to Snowflake Gold |
+| silver-loader | 8008 | — | `market.events.normalized` | Snowflake `SILVER_EVENTS.CURVE_EVENTS` | Incremental COPY INTO for CurveEvent rows; batches 1000 events, flushes every 60 s |
+| gold-loader | 8009 | — | `market.events.normalized` | Snowflake `GOLD_CURVES.FORWARD_CURVE_SNAPSHOTS` | 5-minute tumbling window assembly; MERGE upsert on `(curve_name, as_of)` |
 
 ---
 
@@ -195,7 +195,7 @@ curl http://localhost:8000/api/v1/curves/TTF
 curl http://localhost:8000/api/v1/dlq?limit=10
 
 # Check provider health
-curl http://localhost:8000/api/v1/health/providers
+curl http://localhost:8000/api/v1/providers
 
 # View all replayed jobs
 curl http://localhost:8000/api/v1/replay
@@ -485,13 +485,15 @@ All services read configuration from environment variables (pydantic-settings). 
 
 | Variable | Default | Description |
 |---|---|---|
-| `SNOWFLAKE_ACCOUNT` | _(none)_ | Snowflake account identifier (e.g. `xy12345.us-east-1`) |
+| `SNOWFLAKE_ACCOUNT` | _(none)_ | Snowflake account identifier (e.g. `MYORG-AB12345`) |
 | `SNOWFLAKE_USER` | _(none)_ | Snowflake login name |
-| `SNOWFLAKE_PASSWORD` | _(none)_ | Snowflake password (use Secrets Manager in production) |
-| `SNOWFLAKE_DATABASE` | `MARKET_DATA_PLATFORM` | Target database |
+| `SNOWFLAKE_PAT_TOKEN` | _(none)_ | Programmatic Access Token — preferred; bypasses MFA |
+| `SNOWFLAKE_PASSWORD` | _(none)_ | Password auth fallback (prefer PAT in production) |
+| `SNOWFLAKE_DATABASE` | `MARKET_DATA` | Target database (created by 001 DDL script) |
 | `SNOWFLAKE_SCHEMA_SILVER` | `SILVER_EVENTS` | Silver schema name |
 | `SNOWFLAKE_SCHEMA_GOLD` | `GOLD_CURVES` | Gold schema name |
-| `SNOWFLAKE_WAREHOUSE` | `INGESTION_WH` | Compute warehouse for COPY INTO |
+| `SNOWFLAKE_WAREHOUSE` | `INGESTION_WH` | Compute warehouse for COPY INTO / MERGE |
+| `SNOWFLAKE_STAGE_NAME` | `MDRP_STAGE` | Internal stage for PUT / COPY INTO operations |
 
 ### Alerting variables
 
@@ -549,51 +551,76 @@ curl -X POST http://localhost:8000/api/v1/replay \
 
 ## Snowflake Integration
 
+Snowflake is optional. If `SNOWFLAKE_ACCOUNT` is not set, the silver-loader and gold-loader start in no-op mode — the rest of the pipeline (Redis, Bronze/MinIO, Kafka) continues to function normally.
+
 ### Prerequisites
 
-- A Snowflake account (trial or paid)
+- A Snowflake account (trial or paid). Free 30-day trial at https://signup.snowflake.com/
 - `SYSADMIN` role to run the DDL scripts
-- The Snowflake account identifier in the format `<account>.<region>` (e.g. `xy12345.us-east-1`)
+- The Snowflake account identifier — find it in **Admin → Accounts** in the Snowflake UI (format: `ORGNAME-LOCATOR`, e.g. `MYORG-AB12345`)
 
-### Running the DDL scripts
+### 1. Run the DDL scripts
 
-Execute the four scripts in `infra/snowflake/` in order using SnowSQL or the Snowflake web UI:
+Execute the six scripts in `infra/snowflake/` in order. Use the Snowflake web worksheet or SnowSQL:
 
 ```sql
--- 1. Create database, warehouses, and resource monitors
+-- Creates database MARKET_DATA and warehouses INGESTION_WH / QUERY_WH
 \i infra/snowflake/001_database_and_warehouses.sql
 
--- 2. Create schemas (SILVER_EVENTS, GOLD_CURVES, STAGING)
+-- Creates schemas SILVER_EVENTS, GOLD_CURVES, BRONZE_EVENTS
 \i infra/snowflake/002_schemas.sql
 
--- 3. Create all tables (CURVE_EVENTS, FORWARD_CURVE_SNAPSHOTS, etc.)
+-- Creates tables: CURVE_EVENTS, DLQ_EVENTS, FORWARD_CURVE_SNAPSHOTS, PROVIDER_QUALITY_HISTORY
 \i infra/snowflake/003_tables.sql
 
--- 4. Create roles and grant minimum-privilege permissions
+-- Creates roles MDRP_LOADER / MDRP_READER and grants minimum privileges
 \i infra/snowflake/004_roles_and_grants.sql
+
+-- Creates internal stages MDRP_STAGE (used by COPY INTO) and shared JSON file format
+\i infra/snowflake/005_stages_and_pipes.sql
+
+-- Creates operational views: V_LATEST_CURVES, V_DLQ_SUMMARY, V_CURVE_COMPLETENESS
+\i infra/snowflake/006_views.sql
 ```
 
-### Tables created
+### 2. Generate a Programmatic Access Token (PAT)
 
-| Schema | Table | Content |
-|---|---|---|
-| `SILVER_EVENTS` | `CURVE_EVENTS` | One row per validated `CurveEvent` — full lineage from Bronze S3 key to trace ID |
-| `GOLD_CURVES` | `FORWARD_CURVE_SNAPSHOTS` | Reconciled point-in-time forward curve snapshots; used for risk and settlement |
-| `GOLD_CURVES` | `PROVIDER_QUALITY_METRICS` | Rolling quality score history per provider |
+PAT tokens bypass MFA and don't require interactive login — the recommended auth method for service accounts.
 
-### Connection string
+1. Log into Snowflake → click your username (top-right) → **Programmatic Access Tokens**
+2. Click **Generate Token**, set an expiry (up to 1 year), and copy the token
+3. Store it in `.env` as `SNOWFLAKE_PAT_TOKEN=eyJ...`
 
-Set these in `.env` (or use AWS Secrets Manager in production):
+Password auth also works if you prefer: set `SNOWFLAKE_PASSWORD` instead.
+
+### 3. Set environment variables
+
+Add to `.env` (see `.env.example` for the full reference):
 
 ```bash
-SNOWFLAKE_ACCOUNT=xy12345.us-east-1
-SNOWFLAKE_USER=mdrp_loader
-SNOWFLAKE_PASSWORD=your-password
-SNOWFLAKE_DATABASE=MDRP
+SNOWFLAKE_ACCOUNT=MYORG-AB12345       # from Admin → Accounts in Snowflake UI
+SNOWFLAKE_USER=your_login_name
+SNOWFLAKE_PAT_TOKEN=eyJraWQ...        # preferred; generated in step 2
+# SNOWFLAKE_PASSWORD=your-password    # fallback if not using PAT
+SNOWFLAKE_DATABASE=MARKET_DATA        # created by 001_database_and_warehouses.sql
 SNOWFLAKE_SCHEMA_SILVER=SILVER_EVENTS
 SNOWFLAKE_SCHEMA_GOLD=GOLD_CURVES
 SNOWFLAKE_WAREHOUSE=INGESTION_WH
+SNOWFLAKE_STAGE_NAME=MDRP_STAGE
 ```
+
+Then restart the loaders: `docker compose restart silver-loader gold-loader`
+
+### Tables created
+
+| Database | Schema | Table | Content |
+|---|---|---|---|
+| `MARKET_DATA` | `SILVER_EVENTS` | `CURVE_EVENTS` | One row per validated `CurveEvent` — full lineage from Bronze S3 key to trace ID |
+| `MARKET_DATA` | `SILVER_EVENTS` | `DLQ_EVENTS` | Dead-letter events with retry tracking |
+| `MARKET_DATA` | `GOLD_CURVES` | `FORWARD_CURVE_SNAPSHOTS` | Reconciled point-in-time forward curve snapshots (upserted on `curve_name, as_of`) |
+| `MARKET_DATA` | `GOLD_CURVES` | `PROVIDER_QUALITY_HISTORY` | Rolling quality score history per provider |
+
+Both tables use Snowflake clustering keys for query performance: Silver clusters on `(curve_date, provider, instrument)`; Gold clusters on `(instrument, TO_DATE(as_of))`.
 
 The silver-loader and gold-loader services check `snowflake_configured` at startup and skip all Snowflake operations gracefully if credentials are absent — the rest of the pipeline continues to function.
 
@@ -633,6 +660,15 @@ In production, all secrets (Snowflake password, Databento API key, Teams webhook
 ## Testing
 
 ```bash
+# Install test dependencies (one-time setup)
+pip install \
+  libs/common \
+  services/normalization-service \
+  services/validation-service \
+  services/bronze-writer \
+  services/gold-loader \
+  pytest pyarrow pandas
+
 # Unit tests (no running services required)
 make test
 
@@ -721,11 +757,13 @@ Chaos tests in `tests/chaos/` drive the emulator to high fault rates and assert 
 │   └── alertmanager/alertmanager.yml  # Routing tree, receivers, inhibition rules
 │
 ├── infra/
-│   ├── snowflake/                  # DDL scripts (run once in order 001–004)
+│   ├── snowflake/                  # DDL scripts (run once in order 001–006)
 │   │   ├── 001_database_and_warehouses.sql
 │   │   ├── 002_schemas.sql
 │   │   ├── 003_tables.sql
-│   │   └── 004_roles_and_grants.sql
+│   │   ├── 004_roles_and_grants.sql
+│   │   ├── 005_stages_and_pipes.sql
+│   │   └── 006_views.sql
 │   └── terraform/
 │       ├── modules/
 │       │   ├── ecs/                # ECS task definitions, services, IAM

@@ -12,6 +12,7 @@ Bronze partition scheme:
 from __future__ import annotations
 
 import io
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -71,8 +72,15 @@ class BronzeStorageClient:
         batch_id = str(uuid4())
         key = _partition_key(provider, ts, batch_id)
 
-        df = pd.DataFrame(records)
-        table = pa.Table.from_pandas(df, preserve_index=False)
+        df = pd.DataFrame(_sanitise_records(records))
+        try:
+            table = pa.Table.from_pandas(df, preserve_index=False)
+        except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+            # Fallback: stringify all columns so mixed-type batches (e.g. fault-
+            # injected ~~CORRUPTED~~ strings alongside numeric prices) never block
+            # Bronze writes.  Raw JSON is preserved in the payload column.
+            df = df.astype(str)
+            table = pa.Table.from_pandas(df, preserve_index=False)
 
         buf = io.BytesIO()
         pq.write_table(
@@ -163,6 +171,24 @@ def _partition_key(provider: str, ts: datetime, batch_id: str) -> str:
         f"{ts.strftime('%H')}/"
         f"events_{batch_id}.parquet"
     )
+
+
+def _sanitise_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Serialise dict/list values to JSON strings so PyArrow can build a
+    consistent column schema even when fault injection has injected
+    strings (e.g. '~~CORRUPTED~~') into otherwise-numeric nested fields.
+    """
+    out = []
+    for record in records:
+        sanitised: dict[str, Any] = {}
+        for k, v in record.items():
+            if isinstance(v, (dict, list)):
+                sanitised[k] = json.dumps(v, default=str)
+            else:
+                sanitised[k] = v
+        out.append(sanitised)
+    return out
 
 
 def _extract_timestamp_from_key(key: str) -> datetime | None:

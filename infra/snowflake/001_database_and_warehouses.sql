@@ -10,7 +10,7 @@ USE ROLE SYSADMIN;
 -- Database
 -- =============================================================================
 
-CREATE DATABASE IF NOT EXISTS MDRP
+CREATE DATABASE IF NOT EXISTS MARKET_DATA
   DATA_RETENTION_TIME_IN_DAYS = 7
   COMMENT = 'Market Data Reliability Platform — all layers';
 

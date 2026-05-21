@@ -63,8 +63,8 @@ def _build_snowflake_client(settings: GoldLoaderSettings) -> SnowflakeClient | N
         logger.warning(
             "snowflake_not_configured",
             hint=(
-                "Set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD "
-                "to enable Gold loading"
+                "Set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, and SNOWFLAKE_PAT_TOKEN "
+                "(or SNOWFLAKE_PASSWORD) to enable Gold loading"
             ),
         )
         return None
@@ -72,7 +72,8 @@ def _build_snowflake_client(settings: GoldLoaderSettings) -> SnowflakeClient | N
     client = SnowflakeClient(
         account=settings.snowflake_account,  # type: ignore[arg-type]
         user=settings.snowflake_user,  # type: ignore[arg-type]
-        password=settings.snowflake_password,  # type: ignore[arg-type]
+        password=settings.snowflake_password,
+        pat_token=settings.snowflake_pat_token,
         database=settings.snowflake_database,
         schema=settings.snowflake_schema_gold,
         warehouse=settings.snowflake_warehouse,

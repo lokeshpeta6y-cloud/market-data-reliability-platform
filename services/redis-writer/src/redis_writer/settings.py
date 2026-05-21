@@ -46,9 +46,10 @@ class RedisWriterSettings(BaseServiceSettings):
         default={
             "TTF": 24,
             "NBP": 24,
-            "BRENT": 12,
-            "WTI": 12,
-            "EU_ETS": 12,
+            "BRENT": 24,
+            "WTI": 24,
+            "EU_ETS": 5,
+            "TTF_POWER": 32,
         },
         alias="EXPECTED_TENORS_PER_INSTRUMENT",
     )

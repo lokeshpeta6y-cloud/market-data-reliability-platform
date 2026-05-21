@@ -56,8 +56,10 @@ class BaseServiceSettings(BaseSettings):
     snowflake_account: str | None = Field(default=None, alias="SNOWFLAKE_ACCOUNT")
     snowflake_user: str | None = Field(default=None, alias="SNOWFLAKE_USER")
     snowflake_password: str | None = Field(default=None, alias="SNOWFLAKE_PASSWORD")
+    # PAT token takes precedence over password; bypasses MFA
+    snowflake_pat_token: str | None = Field(default=None, alias="SNOWFLAKE_PAT_TOKEN")
     snowflake_database: str = Field(
-        default="MARKET_DATA_PLATFORM", alias="SNOWFLAKE_DATABASE"
+        default="MARKET_DATA", alias="SNOWFLAKE_DATABASE"
     )
     snowflake_schema_silver: str = Field(
         default="SILVER_EVENTS", alias="SNOWFLAKE_SCHEMA_SILVER"
@@ -77,9 +79,9 @@ class BaseServiceSettings(BaseSettings):
 
     @property
     def snowflake_configured(self) -> bool:
-        return all(
-            [self.snowflake_account, self.snowflake_user, self.snowflake_password]
-        )
+        has_account_and_user = bool(self.snowflake_account and self.snowflake_user)
+        has_auth = bool(self.snowflake_pat_token or self.snowflake_password)
+        return has_account_and_user and has_auth
 
     @property
     def databento_configured(self) -> bool:

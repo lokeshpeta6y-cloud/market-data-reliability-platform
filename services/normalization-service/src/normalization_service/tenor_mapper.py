@@ -16,6 +16,7 @@ Spot      : "spot"
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
 from mdrp_common.models import DeliveryPeriod
 
@@ -98,6 +99,30 @@ _RE_ANNUAL_BARE = re.compile(r"^(\d{4})$")
 # Spot: "spot", "d+1", "D+1"
 _RE_SPOT = re.compile(r"^(spot|d\+1)$", re.IGNORECASE)
 
+# Relative monthly: "M+1", "M+24" — months forward from today
+_RE_RELATIVE_MONTHLY = re.compile(r"^M\+(\d+)$", re.IGNORECASE)
+
+# Relative quarterly: "Q+1", "Q+8" — quarters forward from today
+_RE_RELATIVE_QUARTERLY = re.compile(r"^Q\+(\d+)$", re.IGNORECASE)
+
+
+def _months_forward(n: int) -> str:
+    """Return YYYY-MM for the date exactly *n* months from today."""
+    now = datetime.now(timezone.utc)
+    total_months = now.month - 1 + n
+    year = now.year + total_months // 12
+    month = total_months % 12 + 1
+    return f"{year}-{month:02d}"
+
+
+def _quarters_forward(n: int) -> str:
+    """Return YYYY-QQ for the calendar quarter *n* quarters from today."""
+    now = datetime.now(timezone.utc)
+    total_quarters = (now.month - 1) // 3 + n
+    year = now.year + total_quarters // 4
+    quarter = total_quarters % 4 + 1
+    return f"{year}-Q{quarter}"
+
 
 # ---------------------------------------------------------------------------
 # TenorMapper
@@ -135,6 +160,16 @@ class TenorMapper:
             When *raw_tenor* does not match any recognised pattern.
         """
         tenor = raw_tenor.strip()
+
+        # --- Relative monthly: "M+N" → absolute YYYY-MM ---
+        m = _RE_RELATIVE_MONTHLY.match(tenor)
+        if m:
+            return _months_forward(int(m.group(1))), DeliveryPeriod.MONTHLY
+
+        # --- Relative quarterly: "Q+N" → absolute YYYY-QQ ---
+        m = _RE_RELATIVE_QUARTERLY.match(tenor)
+        if m:
+            return _quarters_forward(int(m.group(1))), DeliveryPeriod.QUARTERLY
 
         # --- Spot ---
         if _RE_SPOT.match(tenor):

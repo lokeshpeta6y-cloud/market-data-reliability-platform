@@ -59,14 +59,15 @@ def _build_snowflake_client(settings: SilverLoaderSettings) -> SnowflakeClient |
     if not settings.snowflake_configured:
         logger.warning(
             "snowflake_not_configured",
-            hint="Set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD to enable Silver loading",
+            hint="Set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, and SNOWFLAKE_PAT_TOKEN (or SNOWFLAKE_PASSWORD) to enable Silver loading",
         )
         return None
 
     client = SnowflakeClient(
         account=settings.snowflake_account,  # type: ignore[arg-type]
         user=settings.snowflake_user,  # type: ignore[arg-type]
-        password=settings.snowflake_password,  # type: ignore[arg-type]
+        password=settings.snowflake_password,
+        pat_token=settings.snowflake_pat_token,
         database=settings.snowflake_database,
         schema=settings.snowflake_schema_silver,
         warehouse=settings.snowflake_warehouse,

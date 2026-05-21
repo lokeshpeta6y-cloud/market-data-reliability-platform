@@ -6,13 +6,12 @@ build-backend = "hatchling.build"
 name = "provider-emulator"
 version = "0.1.0"
 description = "Synthetic and real-data market event producer for the MDRP platform"
-readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 
 dependencies = [
     # Shared platform library — installed from the monorepo path
-    "mdrp-common @ file:///${PROJECT_ROOT}/../../libs/common",
+    "mdrp-common",
     # Kafka client
     "confluent-kafka>=2.3.0",
     # Metrics

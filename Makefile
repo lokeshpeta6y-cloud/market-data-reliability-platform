@@ -34,7 +34,7 @@ COMPOSE_FILE        ?= docker-compose.yml
 COMPOSE             := docker compose -f $(COMPOSE_FILE)
 
 # ops-api
-OPS_API_URL         ?= http://localhost:8010
+OPS_API_URL         ?= http://localhost:8000
 REPLAY_LOOKBACK_H   ?= 1
 
 # AWS / ECR
@@ -100,7 +100,7 @@ build: ## Build all Docker images without starting containers
 # ---------------------------------------------------------------------------
 
 test: ## Run unit tests (no external dependencies required)
-	$(PYTEST) -m unit tests/unit/ -v
+	$(PYTEST) tests/unit/ -v
 
 test-integration: ## Run integration tests (requires running stack: make up first)
 	INTEGRATION_TESTS=true $(PYTEST) -m integration tests/integration/ -v
@@ -131,9 +131,9 @@ replay: ## Trigger a Bronze S3 replay for the last $(REPLAY_LOOKBACK_H) hour(s)
 	@START_TIME=$$(date -u -d "-$(REPLAY_LOOKBACK_H) hour" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
 		|| date -u -v -$(REPLAY_LOOKBACK_H)H +%Y-%m-%dT%H:%M:%SZ); \
 	END_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
-	curl -s -X POST "$(OPS_API_URL)/api/v1/replay/bronze" \
+	curl -s -X POST "$(OPS_API_URL)/api/v1/replay" \
 		-H "Content-Type: application/json" \
-		-d "{\"source\":\"bronze_s3\",\"start_time\":\"$$START_TIME\",\"end_time\":\"$$END_TIME\"}" \
+		-d "{\"source\":\"bronze_s3\",\"provider\":\"provider-emulator\",\"start_time\":\"$$START_TIME\",\"end_time\":\"$$END_TIME\",\"requested_by\":\"make-replay\"}" \
 		| python -m json.tool
 
 dlq-replay: ## Trigger a DLQ replay for the last $(REPLAY_LOOKBACK_H) hour(s)
@@ -141,13 +141,13 @@ dlq-replay: ## Trigger a DLQ replay for the last $(REPLAY_LOOKBACK_H) hour(s)
 	@START_TIME=$$(date -u -d "-$(REPLAY_LOOKBACK_H) hour" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
 		|| date -u -v -$(REPLAY_LOOKBACK_H)H +%Y-%m-%dT%H:%M:%SZ); \
 	END_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
-	curl -s -X POST "$(OPS_API_URL)/api/v1/replay/dlq" \
+	curl -s -X POST "$(OPS_API_URL)/api/v1/dlq/replay" \
 		-H "Content-Type: application/json" \
-		-d "{\"source\":\"dlq\",\"start_time\":\"$$START_TIME\",\"end_time\":\"$$END_TIME\"}" \
+		-d "{\"start_time\":\"$$START_TIME\",\"end_time\":\"$$END_TIME\",\"requested_by\":\"make-dlq-replay\"}" \
 		| python -m json.tool
 
-health: ## Query ops-api /api/v1/status
-	@curl -s "$(OPS_API_URL)/api/v1/status" | python -m json.tool
+health: ## Query ops-api /health
+	@curl -s "$(OPS_API_URL)/health" | python -m json.tool
 
 # ---------------------------------------------------------------------------
 # ECR push

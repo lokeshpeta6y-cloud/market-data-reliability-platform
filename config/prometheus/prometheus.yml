@@ -120,3 +120,39 @@ scrape_configs:
           service: ops-api
           component: application
     metrics_path: /metrics
+
+  # ----------------------------------------------------------
+  # Gold Loader
+  # ----------------------------------------------------------
+  - job_name: gold-loader
+    static_configs:
+      - targets:
+          - gold-loader:8009
+        labels:
+          service: gold-loader
+          component: application
+    metrics_path: /metrics
+
+  # ----------------------------------------------------------
+  # Silver Loader
+  # ----------------------------------------------------------
+  - job_name: silver-loader
+    static_configs:
+      - targets:
+          - silver-loader:8008
+        labels:
+          service: silver-loader
+          component: application
+    metrics_path: /metrics
+
+  # ----------------------------------------------------------
+  # Redis Exporter
+  # ----------------------------------------------------------
+  - job_name: redis-exporter
+    static_configs:
+      - targets:
+          - redis-exporter:9121
+        labels:
+          service: redis
+          component: cache
+    metrics_path: /metrics

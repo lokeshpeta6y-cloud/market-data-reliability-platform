@@ -8,6 +8,7 @@ REPLAY_EVENTS topic at a configurable rate limit.
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -19,6 +20,29 @@ from mdrp_common.models import RawMarketEvent, ReplayJob, ReplaySource
 from mdrp_common.storage import BronzeStorageClient
 
 log = get_logger(__name__)
+
+
+def _parse_json_strings(record: dict[str, Any]) -> dict[str, Any]:
+    """
+    Convert JSON-string values back to dict/list.
+
+    storage.py serialises dict/list columns to JSON strings so PyArrow can
+    handle mixed-type columns (e.g. fault-injected ~~CORRUPTED~~ strings
+    alongside numeric prices).  This reverses that serialisation so Pydantic
+    can validate the reconstructed RawMarketEvent correctly.
+    """
+    out: dict[str, Any] = {}
+    for k, v in record.items():
+        if isinstance(v, str):
+            stripped = v.strip()
+            if stripped and stripped[0] in ("{", "["):
+                try:
+                    out[k] = json.loads(v)
+                    continue
+                except json.JSONDecodeError:
+                    pass
+        out[k] = v
+    return out
 
 
 class BronzeReplayer:
@@ -164,7 +188,7 @@ class BronzeReplayer:
         import uuid
 
         # Strip replay metadata from original and override
-        data = dict(record)
+        data = _parse_json_strings(dict(record))
         data["is_replay"] = True
         data["replay_source"] = ReplaySource.BRONZE_S3.value
         # New event_id so this replay event is distinct from the original
