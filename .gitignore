@@ -123,3 +123,8 @@ logs/
 *.dll
 demo/.venv/
 demo.venv/
+
+# Editor / tool state
+.claude/
+docs/Snips/
+CONTEXT.md
