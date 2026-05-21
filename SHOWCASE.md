@@ -13,7 +13,9 @@ Energy trading desks consume forward curve data from multiple market data provid
 
 ---
 
-## Architecture Overview
+## Architecture Overview (Cloud Deployment)
+
+> This document covers the live cloud deployment on AWS EC2. For local setup and the full mode comparison see [README.md](README.md).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐

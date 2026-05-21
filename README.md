@@ -34,44 +34,119 @@ External market data providers — ICE, CME, Bloomberg, Refinitiv — are produc
 
 The consequences compound quickly in energy markets. A gas trading desk relying on a TTF forward curve that is missing the M+3 tenor, or that was last updated six hours ago, is pricing risk against stale data. If that error is not detected before the trade is booked, it cannot be undone. Settlement and risk models downstream inherit the contaminated data. The cost is not just a bad mark-to-market; it is a control failure.
 
-This platform treats provider unreliability as a first-class engineering problem. Every event is schema-validated, deduplicated via an atomic Redis SETNX operation, scored for quality, and routed to a dead-letter queue if it fails validation — with full structured tracing from ingestion to storage. Raw events are written immutably to Bronze (S3/MinIO Parquet), allowing forensic replay of any provider incident. Normalised curves land in Snowflake Silver and Gold layers, and the latest snapshot of every forward curve is served from Redis with sub-millisecond latency. The entire pipeline is observable through Prometheus metrics, Grafana dashboards, Jaeger distributed traces, and AlertManager-routed notifications to Microsoft Teams and SMTP.
+This platform treats provider unreliability as a first-class engineering problem. Every event is schema-validated, deduplicated via an atomic Redis SETNX operation, scored for quality, and routed to a dead-letter queue if it fails validation — with full structured tracing from ingestion to storage. Raw events are written immutably to Bronze (S3 Parquet in cloud mode, MinIO locally), allowing forensic replay of any provider incident. Normalised curves land in Snowflake Silver and Gold layers, and the latest snapshot of every forward curve is served from Redis with sub-millisecond latency. The entire pipeline is observable through Prometheus metrics, Grafana dashboards, Jaeger distributed traces, and AlertManager-routed notifications to Microsoft Teams and SMTP.
 
 ---
 
 ## Architecture
 
-### Data Flow
+The pipeline has two deployment modes — the data flow and services are identical; only the storage layer and infrastructure differ.
+
+| | Local (`docker-compose.yml`) | Cloud (`docker-compose.cloud.yml`) |
+|---|---|---|
+| **Bronze storage** | MinIO (Docker container) | AWS S3 (`mdrp-bronze` bucket) |
+| **Silver / Gold** | Optional — loaders no-op if Snowflake not configured | Snowflake (`MARKET_DATA` database) |
+| **Secrets** | `.env` file | AWS Secrets Manager |
+| **Data source** | Synthetic emulator only | Emulator + Databento historical |
+| **Infrastructure** | Single machine, all containers local | EC2 instance (m7i-flex.large, us-east-2) |
+
+---
+
+### Local Mode — Data Flow
 
 ```mermaid
 flowchart TD
     subgraph Sources["Data Sources"]
-        DB[Databento API<br/>GLBX.MDP3 / DBEQ.BASIC]
-        EM[Provider Emulator<br/>TTF · NBP · Brent · WTI · EU ETS]
+        EM[Provider Emulator<br/>TTF · NBP · Brent · WTI · EU ETS<br/>synthetic Ornstein-Uhlenbeck prices]
     end
 
     subgraph Streaming["Redpanda / Kafka"]
-        T1[market.events.raw<br/>6 partitions]
-        T2[market.events.validated<br/>6 partitions]
-        T3[market.events.normalized<br/>6 partitions]
-        T4[market.events.replay<br/>3 partitions]
-        T5[market.events.dlq<br/>3 partitions]
+        T1[market.events.raw]
+        T2[market.events.validated]
+        T3[market.events.normalized]
+        T4[market.events.replay]
+        T5[market.events.dlq]
     end
 
     subgraph Services["Application Services"]
         VS[validation-service<br/>schema · dedup · DLQ routing]
-        BW[bronze-writer<br/>Parquet · S3 partitioned]
+        BW[bronze-writer<br/>Parquet batches]
         NS[normalization-service<br/>tenor · instrument · quality score]
-        RW[redis-writer<br/>curve cache · health tracking]
-        SL[silver-loader<br/>incremental Snowflake Silver]
-        GL[gold-loader<br/>reconciled curve snapshots]
-        RE[replay-engine<br/>Bronze · DLQ · Databento]
+        RW[redis-writer<br/>curve cache]
+        SL[silver-loader<br/>Snowflake Silver — optional]
+        GL[gold-loader<br/>Snowflake Gold — optional]
+        RE[replay-engine<br/>Bronze · DLQ replay]
         OA[ops-api :8000<br/>FastAPI control plane]
     end
 
-    subgraph Storage["Storage"]
-        S3[(MinIO / S3<br/>Bronze Parquet)]
-        SF[(Snowflake<br/>Silver · Gold)]
+    subgraph Storage["Storage — Local"]
+        MN[(MinIO<br/>Bronze Parquet<br/>localhost:9000)]
+        SF[(Snowflake<br/>Silver · Gold<br/>optional)]
         RD[(Redis 7<br/>curve cache · dedup)]
+    end
+
+    subgraph Observability["Observability"]
+        PR[Prometheus :9090]
+        GR[Grafana :3000]
+        JA[Jaeger :16686]
+    end
+
+    EM -->|RawMarketEvent JSON| T1
+    T1 --> VS
+    VS -->|ValidatedMarketEvent| T2
+    VS -->|DLQEvent| T5
+    T2 --> BW
+    BW -->|Parquet batch| MN
+    T2 --> NS
+    NS -->|CurveEvent| T3
+    T3 --> RW
+    RW -->|HSET| RD
+    T3 --> SL
+    SL -->|COPY INTO| SF
+    T3 --> GL
+    GL -->|ForwardCurveSnapshot| SF
+    RE -->|replayed events| T4
+    T4 --> VS
+    OA -->|query| RD
+    PR --> GR
+    Services -->|OTLP| JA
+```
+
+---
+
+### Cloud Mode — Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Sources["Data Sources"]
+        DB[Databento API<br/>GLBX.MDP3 historical]
+        EM[Provider Emulator<br/>TTF · NBP · Brent · WTI · EU ETS<br/>synthetic + Databento live]
+    end
+
+    subgraph Streaming["Redpanda / Kafka"]
+        T1[market.events.raw]
+        T2[market.events.validated]
+        T3[market.events.normalized]
+        T4[market.events.replay]
+        T5[market.events.dlq]
+    end
+
+    subgraph Services["Application Services"]
+        VS[validation-service<br/>schema · dedup · DLQ routing]
+        BW[bronze-writer<br/>Parquet batches]
+        NS[normalization-service<br/>tenor · instrument · quality score]
+        RW[redis-writer<br/>curve cache]
+        SL[silver-loader<br/>Snowflake Silver]
+        GL[gold-loader<br/>Snowflake Gold — 5-min windows]
+        RE[replay-engine<br/>Bronze · DLQ · Databento replay]
+        OA[ops-api :8000<br/>FastAPI control plane]
+    end
+
+    subgraph Storage["Storage — Cloud"]
+        S3[(AWS S3<br/>mdrp-bronze bucket<br/>Parquet partitioned)]
+        SF[(Snowflake<br/>SILVER_EVENTS · GOLD_CURVES<br/>PAT token auth)]
+        RD[(Redis 7<br/>curve cache · dedup)]
+        SM[AWS Secrets Manager<br/>mdrp/prod/*]
     end
 
     subgraph Observability["Observability"]
@@ -82,30 +157,30 @@ flowchart TD
         TM[Teams / SMTP]
     end
 
-    DB -->|RawMarketEvent JSON| T1
+    DB -->|historical feed| EM
     EM -->|RawMarketEvent JSON| T1
-
     T1 --> VS
     VS -->|ValidatedMarketEvent| T2
     VS -->|DLQEvent| T5
-
     T2 --> BW
     BW -->|Parquet batch| S3
-
     T2 --> NS
     NS -->|CurveEvent| T3
-
     T3 --> RW
-    RW -->|HSET latest curve| RD
-
+    RW -->|HSET| RD
     T3 --> SL
     SL -->|COPY INTO| SF
-
     T3 --> GL
     GL -->|ForwardCurveSnapshot| SF
-
     RE -->|replayed events| T4
     T4 --> VS
+    OA -->|query| RD
+    SM -->|secrets at boot| Services
+    PR --> GR
+    PR --> AM
+    AM --> TM
+    Services -->|OTLP| JA
+```
 
     OA -->|query| RD
     OA -->|submit job| RD
