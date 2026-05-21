@@ -38,3 +38,24 @@ output "secret_arns" {
   value       = module.secrets.secret_arns
   sensitive   = true
 }
+
+###############################################################################
+# Eval user — retrieve with: terraform output -raw eval_access_key_id
+###############################################################################
+
+output "eval_user_name" {
+  description = "IAM user name for the evaluator"
+  value       = module.eval_user.eval_user_name
+}
+
+output "eval_access_key_id" {
+  description = "Evaluator AWS access key ID — share out-of-band"
+  value       = module.eval_user.eval_access_key_id
+  sensitive   = true
+}
+
+output "eval_secret_access_key" {
+  description = "Evaluator AWS secret access key — share out-of-band, rotate after eval window"
+  value       = module.eval_user.eval_secret_access_key
+  sensitive   = true
+}

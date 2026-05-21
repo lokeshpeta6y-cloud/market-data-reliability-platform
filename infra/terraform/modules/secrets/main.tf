@@ -64,7 +64,7 @@ resource "aws_secretsmanager_secret_version" "snowflake_user" {
 
 resource "aws_secretsmanager_secret" "snowflake_password" {
   name                    = "${local.name_prefix}/snowflake-password"
-  description             = "Snowflake service user password for ${var.environment}"
+  description             = "Snowflake service user password for ${var.environment} (fallback — prefer PAT)"
   recovery_window_in_days = var.recovery_window_days
 
   tags = {
@@ -76,6 +76,26 @@ resource "aws_secretsmanager_secret" "snowflake_password" {
 resource "aws_secretsmanager_secret_version" "snowflake_password" {
   secret_id     = aws_secretsmanager_secret.snowflake_password.id
   secret_string = var.snowflake_password
+}
+
+###############################################################################
+# Snowflake Programmatic Access Token (PAT) — preferred auth method
+###############################################################################
+
+resource "aws_secretsmanager_secret" "snowflake_pat_token" {
+  name                    = "${local.name_prefix}/snowflake-pat-token"
+  description             = "Snowflake PAT token for ${var.environment} — takes precedence over password"
+  recovery_window_in_days = var.recovery_window_days
+
+  tags = {
+    Name      = "${local.name_prefix}/snowflake-pat-token"
+    SecretFor = "snowflake"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "snowflake_pat_token" {
+  secret_id     = aws_secretsmanager_secret.snowflake_pat_token.id
+  secret_string = var.snowflake_pat_token
 }
 
 ###############################################################################

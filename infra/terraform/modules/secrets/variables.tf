@@ -25,7 +25,14 @@ variable "snowflake_user" {
 }
 
 variable "snowflake_password" {
-  description = "Snowflake service user password"
+  description = "Snowflake service user password (fallback — prefer PAT)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "snowflake_pat_token" {
+  description = "Snowflake Programmatic Access Token — takes precedence over password"
   type        = string
   sensitive   = true
 }

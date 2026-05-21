@@ -55,7 +55,14 @@ variable "snowflake_user" {
 }
 
 variable "snowflake_password" {
-  description = "Snowflake service-user password — stored in Secrets Manager"
+  description = "Snowflake service-user password (fallback — prefer PAT)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "snowflake_pat_token" {
+  description = "Snowflake Programmatic Access Token — stored in Secrets Manager, takes precedence over password"
   type        = string
   sensitive   = true
 }
@@ -84,4 +91,22 @@ variable "teams_webhook_url" {
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID (12-digit) — used in IAM ARN construction"
+  type        = string
+  default     = "299582146389"
+}
+
+variable "s3_bronze_bucket" {
+  description = "Name of the Bronze S3 bucket"
+  type        = string
+  default     = "mdrp-bronze"
+}
+
+variable "eval_user_expiry_date" {
+  description = "ISO-8601 date after which eval credentials must be rotated (tag only — not enforced by AWS)"
+  type        = string
+  default     = "2026-05-28"
 }

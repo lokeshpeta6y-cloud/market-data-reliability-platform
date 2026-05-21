@@ -78,16 +78,17 @@ module "s3" {
 module "secrets" {
   source = "../../modules/secrets"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  databento_api_key  = var.databento_api_key
-  snowflake_account  = var.snowflake_account
-  snowflake_user     = var.snowflake_user
-  snowflake_password = var.snowflake_password
-  smtp_host          = var.smtp_host
-  smtp_username      = var.smtp_username
-  smtp_password      = var.smtp_password
-  teams_webhook_url  = var.teams_webhook_url
+  project_name        = var.project_name
+  environment         = var.environment
+  databento_api_key   = var.databento_api_key
+  snowflake_account   = var.snowflake_account
+  snowflake_user      = var.snowflake_user
+  snowflake_password  = var.snowflake_password
+  snowflake_pat_token = var.snowflake_pat_token
+  smtp_host           = var.smtp_host
+  smtp_username       = var.smtp_username
+  smtp_password       = var.smtp_password
+  teams_webhook_url   = var.teams_webhook_url
 }
 
 ###############################################################################
@@ -106,6 +107,21 @@ module "ecs" {
   vpc_id               = module.networking.vpc_id
   s3_bronze_bucket_arn = module.s3.bronze_bucket_arn
   secret_arns          = module.secrets.secret_arns
+}
+
+###############################################################################
+# Eval User — time-limited read-only access for external evaluators
+###############################################################################
+
+module "eval_user" {
+  source = "../../modules/eval-user"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  aws_region         = var.aws_region
+  aws_account_id     = var.aws_account_id
+  bronze_bucket_name = var.s3_bronze_bucket
+  expiry_date        = var.eval_user_expiry_date
 }
 
 ###############################################################################
