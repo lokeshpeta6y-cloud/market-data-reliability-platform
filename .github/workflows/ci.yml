@@ -80,11 +80,12 @@ jobs:
       - name: Install all service packages
         run: |
           pip install --no-cache-dir libs/common
+          pip install --no-cache-dir services/provider-emulator
           pip install --no-cache-dir services/normalization-service
           pip install --no-cache-dir services/validation-service
           pip install --no-cache-dir services/bronze-writer
           pip install --no-cache-dir services/gold-loader
-          pip install --no-cache-dir pytest pyarrow pandas
+          pip install --no-cache-dir pytest pyarrow pandas fakeredis
 
       - name: Run unit tests
         run: pytest tests/unit/ -v --tb=short
