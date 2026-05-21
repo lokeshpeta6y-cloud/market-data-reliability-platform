@@ -910,12 +910,7 @@ The table below summarises key design decisions. Full ADR context is in `docs/ar
 
 | Item | What it adds |
 |---|---|
-| **Databento fully in Docker** | Real CME/ICE historical data in both local and cloud mode; currently the adapter is wired but the package is not in the Docker image, so it falls back to synthetic |
-| **Schema Registry enforcement** | Avro or Protobuf schemas registered with Redpanda Schema Registry; rejects schema drift at the broker level before it reaches validation-service |
-| **Kubernetes deployment** | Replace single-EC2 Docker Compose with k8s manifests; horizontal scaling per service, rolling deploys, pod disruption budgets |
-| **Anomaly detection on price curves** | Statistical model (Isolation Forest or LSTM autoencoder) to flag abnormal curve shapes — e.g. inverted forward structures or price spikes — before they reach the Gold layer |
-| **Multi-provider fan-in with arbitration** | Connect real ICE/Bloomberg/Refinitiv feeds alongside the emulator; arbitration logic to resolve disagreements on tenor prices across providers |
-| **Snowflake RSA key auth** | Replace PAT token (has an expiry date) with RSA key pair for non-expiring service account authentication |
-| **Consumer lag SLO enforcement** | Grafana panel with p99 consumer lag alerting; auto-triggers replay if lag exceeds threshold, ensuring Silver/Gold stay within SLA of the raw stream |
-| **Real-time Teams/PagerDuty alerting** | AlertManager routing and the ops-api webhook receiver are already wired; just needs live webhook URLs configured |
-| **Cost optimisation** | Spot instances for stateless services (validation, normalization, bronze-writer), reserved capacity for stateful components (Redpanda, Redis) |
+| **Databento in Docker** | The adapter is wired but the package is not in the Docker image — falls back to synthetic. Adding it enables real CME/ICE historical data without code changes |
+| **Snowflake RSA key auth** | Replace the PAT token (expires) with an RSA key pair for non-expiring service account auth |
+| **Teams / PagerDuty alerting** | AlertManager routing and the ops-api webhook receiver are already wired — just needs live webhook URLs in `.env` |
+| **Consumer lag alerting** | Prometheus data is already there; a Grafana alert on p99 consumer lag would auto-trigger replay if Silver/Gold fall behind the raw stream |
