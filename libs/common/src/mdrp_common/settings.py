@@ -8,7 +8,7 @@ dotenv files, environment variable precedence, and type coercion automatically.
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +43,13 @@ class BaseServiceSettings(BaseSettings):
 
     # S3 / MinIO
     s3_endpoint_url: str | None = Field(default=None, alias="S3_ENDPOINT_URL")
+
+    @field_validator("s3_endpoint_url", mode="before")
+    @classmethod
+    def _empty_str_to_none(cls, v: object) -> object:
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
     s3_bucket_bronze: str = Field(
         default="mdrp-bronze", alias="S3_BUCKET_BRONZE"
     )
