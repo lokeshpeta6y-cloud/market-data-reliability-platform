@@ -3,7 +3,7 @@
 # MDRP — EC2 Cloud Deploy Script
 # ============================================================
 #
-# Provisions a t3.xlarge on Amazon Linux 2023, installs Docker,
+# Provisions an EC2 instance on Amazon Linux 2023, installs Docker,
 # clones the repo, pulls secrets from Secrets Manager, and
 # starts the full cloud stack.
 #
@@ -31,7 +31,7 @@ set -euo pipefail
 # Configuration — edit these before running
 # -------------------------------------------------------
 AWS_REGION="us-east-2"
-AWS_ACCOUNT_ID="299582146389"
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 KEY_PAIR_NAME="mdrp"
 INSTANCE_TYPE="m7i-flex.large"
 SECURITY_GROUP_NAME="mdrp-ec2-sg"
@@ -277,7 +277,7 @@ METRICS_PORT_OPS_API=8007
 METRICS_PORT_SILVER_LOADER=8008
 METRICS_PORT_GOLD_LOADER=8009
 
-INSTRUMENTS=TTF,NBP,TTF_POWER,BRENT,WTI,EU_ETS
+INSTRUMENTS=["TTF","NBP","TTF_POWER","BRENT","WTI","EU_ETS"]
 PROVIDER_NAME=provider-emulator
 PUBLISH_INTERVAL_SECONDS=5.0
 FAULT_RATE_DUPLICATE=0.02

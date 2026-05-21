@@ -1,32 +1,4 @@
-"""
-SnapshotAssembler — groups CurveEvents into ForwardCurveSnapshot objects.
-
-Windowing strategy
-------------------
-Events are bucketed into fixed-width tumbling windows of ``snapshot_window_minutes``
-minutes, keyed by ``(curve_name, window_start)``.  The window start is calculated
-by truncating ``event_timestamp`` to the nearest window boundary:
-
-    window_start = floor(event_timestamp / window_width) * window_width
-
-A window is considered *ready* (eligible for flushing) once its end time is at
-least ``2 * snapshot_window_minutes`` in the past.  This gives a full window width
-of grace time for late-arriving events before the snapshot is finalised.
-
-Completeness and authority
---------------------------
-- ``completeness`` = tenors_received / expected_tenors.
-- ``expected_tenors`` defaults to the first snapshot size seen for that
-  ``curve_name`` (i.e. we learn the expected shape from the data).  If
-  ``expected_tenors_per_curve > 0`` is configured it overrides the learned value.
-- ``is_authoritative = completeness >= 0.95 AND min(quality_score) >= 0.70``
-  (both thresholds are configurable in settings).
-
-Thread safety
--------------
-All public methods acquire ``self._lock`` so the assembler can safely be shared
-between the consume thread and a polling/flush thread.
-"""
+"""Groups CurveEvents into ForwardCurveSnapshot objects using fixed-width tumbling windows."""
 
 from __future__ import annotations
 
@@ -117,25 +89,7 @@ class _WindowBuffer:
 
 
 class SnapshotAssembler:
-    """
-    Buffers CurveEvents by ``(curve_name, time_window)`` and returns ready
-    ForwardCurveSnapshot objects when windows expire.
-
-    Parameters
-    ----------
-    snapshot_window_minutes:
-        Width of each tumbling window in minutes.
-    min_completeness:
-        Minimum completeness for a snapshot written to Gold.
-    min_quality_score:
-        Minimum quality score floor for an authoritative snapshot.
-    expected_tenors_per_curve:
-        If > 0, use this as the denominator for completeness rather than
-        the learned first-window size.
-    auth_completeness_threshold:
-        Completeness threshold above which ``is_authoritative`` is True
-        (must also pass ``min_quality_score``).  Defaults to 0.95.
-    """
+    """Buffers CurveEvents by (curve_name, time_window) and emits ForwardCurveSnapshots when windows expire."""
 
     def __init__(
         self,
@@ -165,12 +119,7 @@ class SnapshotAssembler:
     # ------------------------------------------------------------------
 
     def add(self, event: CurveEvent) -> None:
-        """
-        Add a CurveEvent to its corresponding time window buffer.
-
-        The window start is derived by truncating ``event_timestamp`` to the
-        nearest ``snapshot_window_minutes`` boundary (UTC).
-        """
+        """Add a CurveEvent to its tumbling-window bucket (keyed by curve_name + window_start)."""
         window_start = self._window_start_for(event.event_timestamp)
         key = (event.curve_name, window_start)
 
@@ -186,13 +135,7 @@ class SnapshotAssembler:
             self._windows[key].add(event)
 
     def get_ready_snapshots(self) -> list[ForwardCurveSnapshot]:
-        """
-        Return all snapshots whose windows ended more than one window-width ago,
-        removing them from the internal state.
-
-        Only snapshots with ``completeness >= min_completeness`` are returned
-        (non-authoritative partial curves are dropped with a warning log).
-        """
+        """Return and remove all expired windows that meet the minimum completeness threshold."""
         now = datetime.now(timezone.utc)
         cutoff_seconds = 2 * self._window_seconds
         ready: list[ForwardCurveSnapshot] = []
@@ -255,12 +198,7 @@ class SnapshotAssembler:
         return datetime.fromtimestamp(window_epoch, tz=timezone.utc)
 
     def _get_expected_tenors(self, curve_name: str, tenors_seen: int) -> int:
-        """
-        Return the expected tenor count for *curve_name*.
-
-        If ``expected_tenors_override`` was configured, always use that.
-        Otherwise, use the maximum tenors seen for this curve so far.
-        """
+        """Return the configured tenor count override, or the learned maximum for this curve."""
         if self._expected_tenors_override > 0:
             return self._expected_tenors_override
 

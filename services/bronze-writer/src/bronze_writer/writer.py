@@ -1,33 +1,4 @@
-"""
-BronzeWriter — coordinates the EventBuffer and BronzeStorageClient.
-
-Responsibility:
-  - Accept raw event dicts via ``process()``.
-  - Add each event to the in-memory EventBuffer.
-  - When the buffer triggers a flush (size or age), serialise the batch to
-    Parquet and write it to S3/MinIO via BronzeStorageClient.
-  - Track per-provider batches so that a single flush containing events from
-    multiple providers writes one Parquet file per provider (matching the
-    Bronze partition scheme: bronze/{provider}/{YYYY-MM-DD}/{HH}/events_{id}.parquet).
-  - Expose a ``flush_all()`` method that the consumer loop calls before
-    shutdown to drain remaining events.
-
-Commit safety
--------------
-``process()`` returns True if the event was safely flushed (all writes
-succeeded) or added to the buffer (no flush needed yet).  It raises
-BronzeWriteError if a flush was triggered and the S3 write failed, which
-signals to the consumer loop that it must NOT commit the offset.
-
-On a failed flush, the buffer events are put back so they can be retried
-when the service restarts and re-reads uncommitted offsets.
-
-Metrics
--------
-  mdrp_bronze_writes_total          – success / failed counter per provider
-  mdrp_bronze_write_duration_seconds – histogram of write wall-clock time
-  mdrp_bronze_bytes_written_total    – bytes written counter per provider
-"""
+"""BronzeWriter — buffers raw event dicts and flushes them as Parquet files to S3, grouped by provider."""
 
 from __future__ import annotations
 
@@ -54,18 +25,7 @@ class BronzeWriteError(Exception):
 
 
 class BronzeWriter:
-    """
-    Owns an EventBuffer and a BronzeStorageClient.
-
-    Parameters
-    ----------
-    storage_client:
-        Configured BronzeStorageClient pointed at the Bronze bucket.
-    batch_size:
-        Forwarded to EventBuffer.
-    flush_interval_seconds:
-        Forwarded to EventBuffer.
-    """
+    """Owns an EventBuffer and a BronzeStorageClient; writes Parquet files to S3 grouped by provider."""
 
     def __init__(
         self,
@@ -84,20 +44,10 @@ class BronzeWriter:
     # ------------------------------------------------------------------
 
     def process(self, event: dict[str, Any]) -> None:
-        """
-        Add *event* to the buffer and flush if the threshold is reached.
+        """Buffer the event and flush to S3 if the size or age threshold is reached.
 
-        Parameters
-        ----------
-        event:
-            Plain dict from RawMarketEvent.model_dump(mode="python").
-
-        Raises
-        ------
-        BronzeWriteError
-            If a flush was triggered and one or more S3 writes failed.
-            In this case the buffer contents are restored so the caller
-            can avoid committing offsets.
+        Raises BronzeWriteError on S3 write failure; failed events are restored so
+        the consumer can skip offset commit and retry on restart.
         """
         self._buffer.add(event)
 
@@ -105,18 +55,7 @@ class BronzeWriter:
             self.flush()
 
     def flush(self) -> None:
-        """
-        Drain the buffer and write all events to S3.
-
-        Events are grouped by provider — each provider gets its own Parquet
-        file per flush so that the Bronze partition scheme is respected.
-
-        Raises
-        ------
-        BronzeWriteError
-            If any S3 write fails.  All failed events are restored to the
-            buffer (prepended) so they will be retried on the next flush.
-        """
+        """Drain the buffer and write one Parquet file per provider to S3. Raises BronzeWriteError on failure."""
         batch = self._buffer.drain()
         if not batch:
             return
@@ -157,13 +96,7 @@ class BronzeWriter:
             )
 
     def flush_all(self) -> None:
-        """
-        Flush all remaining buffered events.
-
-        Called during graceful shutdown.  Unlike ``flush()``, this does not
-        raise on failure — it logs the error and returns so the process can
-        exit cleanly.  Uncommitted offsets will be re-read on next startup.
-        """
+        """Drain all remaining events on shutdown; logs failures but does not raise."""
         if self._buffer.size() == 0:
             return
 
@@ -236,11 +169,7 @@ class BronzeWriter:
 
     @staticmethod
     def _extract_batch_timestamp(events: list[dict[str, Any]]) -> datetime:
-        """
-        Return a representative timestamp for the batch, used for S3 partitioning.
-
-        Uses the received_at of the first event; falls back to UTC now.
-        """
+        """Return received_at of the first event for S3 partition key; falls back to UTC now."""
         first = events[0]
         received_at = first.get("received_at")
 
