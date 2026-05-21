@@ -20,7 +20,6 @@ import sys
 from mdrp_common.kafka_client import ensure_topics
 from mdrp_common.logging import configure_logging, get_logger
 from mdrp_common.metrics import register_metrics
-
 from provider_emulator.emulator import ProviderEmulator
 from provider_emulator.settings import EmulatorSettings
 

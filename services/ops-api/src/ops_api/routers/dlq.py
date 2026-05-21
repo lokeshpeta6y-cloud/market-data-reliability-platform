@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import DLQEvent, DLQFailureCategory, ReplayJob, ReplaySource
-
 from ..dependencies import RedisDep, SettingsDep
 from .replay import SubmitReplayResponse, _get_job_store
 

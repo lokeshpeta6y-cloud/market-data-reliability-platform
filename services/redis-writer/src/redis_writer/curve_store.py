@@ -19,9 +19,9 @@ The sum of these two keys gives the rolling one-minute event count.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import redis

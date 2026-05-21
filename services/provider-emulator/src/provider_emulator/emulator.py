@@ -42,7 +42,6 @@ from mdrp_common.metrics import (
     PROVIDER_LAST_EVENT_TIMESTAMP,
 )
 from mdrp_common.models import RawMarketEvent
-
 from provider_emulator.databento_adapter import DatabentoAdapter, DatabentoAdapterError
 from provider_emulator.fault_injector import FaultInjector
 from provider_emulator.market_data_generator import MarketDataGenerator

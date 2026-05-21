@@ -9,11 +9,12 @@ a topic boundary.
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -143,7 +144,7 @@ class CurveEvent(BaseModel):
     trace_id: str
 
     @model_validator(mode="after")
-    def validate_quality_score(self) -> "CurveEvent":
+    def validate_quality_score(self) -> CurveEvent:
         if self.quality_score < 0.0 or self.quality_score > 1.0:
             raise ValueError("quality_score must be between 0.0 and 1.0")
         return self

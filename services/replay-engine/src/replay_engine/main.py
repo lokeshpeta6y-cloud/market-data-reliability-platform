@@ -11,7 +11,6 @@ import sys
 
 from mdrp_common.logging import configure_logging, get_logger
 from mdrp_common.metrics import register_metrics
-
 from .engine import ReplayEngine
 from .settings import ReplayEngineSettings
 

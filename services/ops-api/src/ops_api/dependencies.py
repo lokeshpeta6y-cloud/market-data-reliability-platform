@@ -16,7 +16,6 @@ from fastapi import Depends, Request
 
 from mdrp_common.kafka_client import MdrpProducer
 from mdrp_common.storage import BronzeStorageClient
-
 from .settings import OpsApiSettings
 
 

@@ -158,7 +158,7 @@ class MdrpProducer:
         else:
             serialised = json.dumps(value, default=str).encode()
 
-        kafka_headers = list((k, v.encode()) for k, v in (headers or {}).items())
+        kafka_headers = [(k, v.encode()) for k, v in (headers or {}).items()]
 
         with self._lock:
             self._producer.produce(

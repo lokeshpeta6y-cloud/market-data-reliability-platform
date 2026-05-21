@@ -22,7 +22,6 @@ from mdrp_common.kafka_client import MdrpProducer, ensure_topics
 from mdrp_common.logging import configure_logging, get_logger
 from mdrp_common.metrics import register_metrics
 from mdrp_common.storage import BronzeStorageClient
-
 from .alerting import AlertRouter
 from .routers import alerts, curves, dlq, health, replay
 from .settings import OpsApiSettings

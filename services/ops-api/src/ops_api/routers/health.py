@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import ProviderHealthSnapshot, ProviderStatus
-
 from ..dependencies import RedisDep, SettingsDep, StorageDep
 
 log = get_logger(__name__)

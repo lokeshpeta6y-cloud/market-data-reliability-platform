@@ -27,14 +27,10 @@ The adapter is NOT thread-safe.  Wrap in a lock if calling from multiple threads
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import RawMarketEvent
-
-if TYPE_CHECKING:
-    # Import only for type checking to avoid hard dependency
-    import databento as db
 
 logger = get_logger(__name__)
 

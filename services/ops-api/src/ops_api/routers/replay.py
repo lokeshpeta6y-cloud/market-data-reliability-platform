@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import ReplayJob, ReplaySource
-
 from ..dependencies import RedisDep, SettingsDep
 
 log = get_logger(__name__)

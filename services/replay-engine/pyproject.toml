@@ -38,6 +38,22 @@ replay-engine = "replay_engine.main:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/replay_engine"]
 
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["replay_engine", "mdrp_common"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

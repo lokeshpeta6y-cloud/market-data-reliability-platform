@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 from datetime import UTC, datetime
-import time
 from typing import Any
 
 from mdrp_common.logging import get_logger

@@ -12,9 +12,9 @@ validation, so DLQ routing is not appropriate here.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import signal
 import sys
+from datetime import UTC, datetime
 from typing import Any
 
 import redis

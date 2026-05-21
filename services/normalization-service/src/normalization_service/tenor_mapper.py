@@ -15,8 +15,8 @@ Spot      : "spot"
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import re
+from datetime import UTC, datetime
 
 from mdrp_common.models import DeliveryPeriod
 

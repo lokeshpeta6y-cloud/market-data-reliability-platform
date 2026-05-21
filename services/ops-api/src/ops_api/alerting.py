@@ -23,7 +23,6 @@ from typing import Any
 import httpx
 
 from mdrp_common.logging import get_logger
-
 from .settings import OpsApiSettings
 
 log = get_logger(__name__)
