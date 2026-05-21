@@ -20,7 +20,6 @@ from mdrp_common.metrics import (
     QUALITY_SCORE,
 )
 from mdrp_common.models import CurveEvent
-
 from redis_writer.curve_store import CurveStore
 
 log = get_logger(__name__)

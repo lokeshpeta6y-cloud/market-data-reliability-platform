@@ -20,7 +20,6 @@ from mdrp_common.models import (
     FaultType,
     ValidatedMarketEvent,
 )
-
 from normalization_service.instrument_mapper import InstrumentMapper
 from normalization_service.tenor_mapper import TenorMapper
 

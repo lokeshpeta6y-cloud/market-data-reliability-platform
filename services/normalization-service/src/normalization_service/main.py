@@ -34,7 +34,6 @@ from mdrp_common.metrics import (
     register_metrics,
 )
 from mdrp_common.models import ValidatedMarketEvent
-
 from normalization_service.normalizer import Normalizer
 from normalization_service.settings import NormalizationServiceSettings
 

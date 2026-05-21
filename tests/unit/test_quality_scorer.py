@@ -170,4 +170,4 @@ class TestRollingAverageRedisStorage:
     def test_score_stored_with_correct_key_prefix(self, scorer, redis_client):
         scorer.score_event("my-provider", [])
         keys = redis_client.keys("provider:quality:*")
-        assert any(b"my-provider" in k or "my-provider" in k for k in keys)
+        assert any("my-provider" in (k.decode() if isinstance(k, bytes) else k) for k in keys)

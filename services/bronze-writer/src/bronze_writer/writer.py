@@ -14,7 +14,6 @@ from mdrp_common.metrics import (
     BRONZE_WRITE_DURATION_SECONDS,
 )
 from mdrp_common.storage import BronzeStorageClient
-
 from .buffer import EventBuffer
 
 logger = get_logger(__name__)

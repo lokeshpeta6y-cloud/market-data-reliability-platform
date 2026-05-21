@@ -129,9 +129,8 @@ class BronzeReplayer:
 
                 # Filter by event_timestamp within the job window
                 event_ts = self._parse_datetime(record.get("event_timestamp"))
-                if event_ts is not None:
-                    if not (start_time <= event_ts <= end_time):
-                        continue
+                if event_ts is not None and not (start_time <= event_ts <= end_time):
+                    continue
 
                 event = self._reconstruct_event(record)
                 producer.produce(

@@ -26,7 +26,6 @@ from mdrp_common.kafka_client import (
 from mdrp_common.logging import configure_logging, get_logger, set_trace_id
 from mdrp_common.metrics import register_metrics
 from mdrp_common.models import CurveEvent
-
 from redis_writer.curve_store import CurveStore
 from redis_writer.settings import RedisWriterSettings
 from redis_writer.writer import RedisWriter

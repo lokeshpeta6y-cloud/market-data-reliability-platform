@@ -23,7 +23,6 @@ that forensic replay can reconstruct the original message exactly.
 from __future__ import annotations
 
 import uuid
-
 from datetime import UTC, datetime, timedelta
 from typing import Any
 

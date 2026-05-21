@@ -133,7 +133,7 @@ class DLQReplayer:
 
         partitions = [
             TopicPartition(Topics.DLQ_EVENTS, p)
-            for p in topic_meta.partitions.keys()
+            for p in topic_meta.partitions
         ]
 
         # Get offsets for the start timestamp
