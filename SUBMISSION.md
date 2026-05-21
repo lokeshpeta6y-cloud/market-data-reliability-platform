@@ -94,39 +94,32 @@ curl -X POST http://13.58.210.216:8000/api/v1/replay \
        "requested_by":"evaluator"}'
 ```
 
-**Expected `/api/v1/curves` response shape:**
+**Actual `/api/v1/curves` response (verified live):**
 ```json
 [
-  {
-    "instrument": "TTF",
-    "curve_name": "TTF_MONTHLY_FWD",
-    "tenors": {
-      "1M": {"price": 32.41, "quality_score": 0.95, "updated_at": "2026-05-21T..."},
-      "3M": {"price": 33.10, "quality_score": 0.95, "updated_at": "2026-05-21T..."},
-      "Cal27": {"price": 35.80, "quality_score": 0.90, "updated_at": "2026-05-21T..."}
-    },
-    "provider": "provider-emulator",
-    "is_authoritative": true,
-    "completeness": 0.92
-  }
+  {"instrument":"TTF","curve_name":"TTF_MONTHLY_FWD","provider":"provider-emulator",
+   "as_of":"2026-05-21T10:42:39Z","completeness":1.0,"tenor_count":24,
+   "version":431,"is_authoritative":true},
+  {"instrument":"BRENT","curve_name":"BRENT_MONTHLY_FWD","provider":"provider-emulator",
+   "as_of":"2026-05-21T10:42:39Z","completeness":1.0,"tenor_count":24,
+   "version":346,"is_authoritative":true},
+  ...6 instruments total
 ]
 ```
 
-**Expected `/api/v1/dlq` response shape:**
+For full tenor detail with quality scores: `GET /api/v1/curves/TTF`
+
+**Actual `/api/v1/dlq` response (verified live):**
 ```json
 {
-  "depth_estimate": 47,
-  "top_failure_categories": [
-    {"category": "DELAYED", "count": 18},
-    {"category": "OUT_OF_ORDER", "count": 12},
-    {"category": "DUPLICATE", "count": 9},
-    {"category": "SCHEMA_DRIFT", "count": 4},
-    {"category": "MALFORMED", "count": 4}
-  ],
-  "recent_entries": [...],
-  "as_of": "2026-05-21T..."
+  "depth_estimate": 0,
+  "top_failure_categories": [],
+  "recent_entries": [],
+  "as_of": "2026-05-21T10:42:50Z"
 }
 ```
+DLQ is at 0 — fault-injected events (DELAYED, SCHEMA_DRIFT, etc.) are processed, scored,
+and the quality score is reflected in the curve's `quality_score` field, not dropped to DLQ.
 
 ### 2. Grafana dashboards
 
