@@ -128,3 +128,6 @@ demo.venv/
 .claude/
 docs/Snips/
 CONTEXT.md
+
+# Generated eval package — contains live credentials, share via email only
+eval-access.md
