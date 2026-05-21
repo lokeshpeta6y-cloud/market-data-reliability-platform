@@ -14,9 +14,8 @@ import json
 import logging
 import signal
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from typing import Any
 
 from confluent_kafka import (
@@ -25,7 +24,6 @@ from confluent_kafka import (
     KafkaException,
     Message,
     Producer,
-    TopicPartition,
 )
 from confluent_kafka.admin import AdminClient, NewTopic
 from pydantic import BaseModel

@@ -12,9 +12,9 @@ validation, so DLQ routing is not appropriate here.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import signal
 import sys
-from datetime import datetime, timezone
 from typing import Any
 
 import redis
@@ -173,7 +173,7 @@ def _process_message(
     )
 
     latency = (
-        datetime.now(timezone.utc) - event.event_timestamp
+        datetime.now(UTC) - event.event_timestamp
     ).total_seconds()
     EVENT_PROCESSING_LATENCY_SECONDS.labels(
         service=_SERVICE_NAME,

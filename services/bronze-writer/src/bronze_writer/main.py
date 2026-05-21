@@ -38,7 +38,6 @@ from __future__ import annotations
 import signal
 import sys
 import threading
-import time
 
 from mdrp_common.kafka_client import (
     MdrpConsumer,

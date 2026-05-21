@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Final
 
 from mdrp_common.logging import get_logger
@@ -73,7 +73,7 @@ def _quarterly_tenors(count: int) -> list[TenorSpec]:
 
 def _eua_dec_tenors() -> list[TenorSpec]:
     """December EUA contracts for the next 5 years."""
-    current_year = datetime.now(timezone.utc).year
+    current_year = datetime.now(UTC).year
     return [
         TenorSpec(label=f"Dec-{current_year + i}", offset_months=i * 12)
         for i in range(1, 6)
@@ -259,7 +259,7 @@ class MarketDataGenerator:
         state = self._states[instrument]
         state.step()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         spec = state.spec
         events: list[RawMarketEvent] = []
 

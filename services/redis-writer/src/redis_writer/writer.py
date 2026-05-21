@@ -11,8 +11,7 @@ Responsibilities
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from mdrp_common.logging import get_logger
 from mdrp_common.metrics import (
@@ -74,7 +73,7 @@ class RedisWriter:
 
         # Latency from event origin to now
         processing_latency = (
-            datetime.now(timezone.utc) - event.event_timestamp
+            datetime.now(UTC) - event.event_timestamp
         ).total_seconds()
 
         # Prometheus

@@ -20,7 +20,7 @@ and consume until we reach a message whose timestamp exceeds end_time.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from confluent_kafka import Consumer, KafkaError, TopicPartition
@@ -268,7 +268,7 @@ class DLQReplayer:
         data["replay_source"] = ReplaySource.DLQ.value
         data["event_id"] = str(uuid.uuid4())
         data["trace_id"] = str(uuid.uuid4())
-        data["received_at"] = datetime.now(timezone.utc).isoformat()
+        data["received_at"] = datetime.now(UTC).isoformat()
         # Preserve original provider/instrument from DLQ metadata if missing
         if "provider" not in data or not data["provider"]:
             data["provider"] = dlq_event.provider

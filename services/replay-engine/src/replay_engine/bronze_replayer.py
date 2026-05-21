@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from mdrp_common.kafka_client import MdrpProducer, Topics
@@ -195,7 +195,7 @@ class BronzeReplayer:
         data["event_id"] = str(uuid.uuid4())
         data["trace_id"] = str(uuid.uuid4())
         # Reset received_at to now so downstream latency metrics are meaningful
-        data["received_at"] = datetime.now(timezone.utc).isoformat()
+        data["received_at"] = datetime.now(UTC).isoformat()
 
         return RawMarketEvent.model_validate(data)
 
@@ -204,9 +204,9 @@ class BronzeReplayer:
         if value is None:
             return None
         if isinstance(value, datetime):
-            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+            return value if value.tzinfo else value.replace(tzinfo=UTC)
         try:
             dt = datetime.fromisoformat(str(value))
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         except (ValueError, TypeError):
             return None

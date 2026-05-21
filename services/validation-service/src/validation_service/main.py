@@ -153,7 +153,7 @@ def _produce_deserialise_failure_dlq(
     exc: Exception,
 ) -> None:
     """Produce a minimal DLQ entry when we cannot even parse the raw message."""
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     from mdrp_common.models import DLQEvent, DLQFailureCategory
 
@@ -167,7 +167,7 @@ def _produce_deserialise_failure_dlq(
             failure_reason=f"Deserialisation error: {exc}",
             failure_category=DLQFailureCategory.SCHEMA_VIOLATION,
             raw_payload={"raw_bytes": (raw_value or b"").decode("utf-8", errors="replace")},
-            original_received_at=datetime.now(timezone.utc),
+            original_received_at=datetime.now(UTC),
             trace_id="unknown",
         ),
     )

@@ -14,7 +14,7 @@ from __future__ import annotations
 import io
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -68,7 +68,7 @@ class BronzeStorageClient:
         if not records:
             raise ValueError("cannot write empty batch")
 
-        ts = timestamp or datetime.now(timezone.utc)
+        ts = timestamp or datetime.now(UTC)
         batch_id = str(uuid4())
         key = _partition_key(provider, ts, batch_id)
 
@@ -203,7 +203,7 @@ def _extract_timestamp_from_key(key: str) -> datetime | None:
         return datetime(
             *[int(x) for x in date_str.split("-")],
             int(hour_str),
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
     except (IndexError, ValueError):
         return None

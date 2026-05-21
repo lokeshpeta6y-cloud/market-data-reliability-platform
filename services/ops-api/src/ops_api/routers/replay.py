@@ -8,7 +8,7 @@ GET  /api/v1/replay/{job_id}     — get job status and progress
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request, status

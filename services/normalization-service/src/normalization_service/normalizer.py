@@ -7,7 +7,7 @@ version counters to produce a canonical CurveEvent from a ValidatedMarketEvent.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -172,7 +172,7 @@ class Normalizer:
             provider=event.provider,
             version=version,
             event_timestamp=event.event_timestamp,
-            ingestion_timestamp=datetime.now(timezone.utc),
+            ingestion_timestamp=datetime.now(UTC),
             quality_score=quality_score,
             is_replay=event.is_replay,
             replay_source=event.replay_source,

@@ -26,7 +26,7 @@ The adapter is NOT thread-safe.  Wrap in a lock if calling from multiple threads
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from mdrp_common.logging import get_logger
@@ -267,10 +267,10 @@ class DatabentoAdapter:
             ts_event_ns = getattr(record, "ts_event", None)
             if ts_event_ns is not None:
                 event_ts = datetime.fromtimestamp(
-                    float(ts_event_ns) / 1e9, tz=timezone.utc
+                    float(ts_event_ns) / 1e9, tz=UTC
                 )
             else:
-                event_ts = datetime.now(timezone.utc)
+                event_ts = datetime.now(UTC)
 
             # Symbol from the record (may be the specific contract code)
             raw_symbol = getattr(record, "symbol", spec["symbol"])

@@ -19,9 +19,9 @@ The sum of these two keys gives the rolling one-minute event count.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 import time
-from datetime import datetime, timezone
 from typing import Any
 
 import redis
@@ -114,7 +114,7 @@ class CurveStore:
         # Serialise curve event for history (exclude large nested data if present)
         history_member = event.model_dump_json()
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
         epm = self._events_per_minute(provider)
 
         pipe = self._redis.pipeline(transaction=True)

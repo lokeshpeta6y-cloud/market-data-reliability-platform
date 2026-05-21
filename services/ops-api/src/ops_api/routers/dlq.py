@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
@@ -57,7 +57,7 @@ class DLQStatsResponse(BaseModel):
     depth_estimate: int
     top_failure_categories: list[FailureCategoryCount]
     recent_entries: list[DLQEntry]
-    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    as_of: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class DLQReplayRequest(BaseModel):

@@ -19,7 +19,6 @@ import redis
 
 from mdrp_common.kafka_client import (
     MdrpConsumer,
-    MdrpProducer,
     Topics,
     deserialise,
     ensure_topics,

@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import smtplib
 import ssl
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
@@ -240,7 +240,7 @@ class AlertRouter:
             f"MDRP Alert Notification",
             f"========================",
             f"Status: {status}",
-            f"Time:   {datetime.now(timezone.utc).isoformat()}",
+            f"Time:   {datetime.now(UTC).isoformat()}",
             f"Alerts: {len(alerts)}",
             "",
         ]
@@ -284,7 +284,7 @@ class AlertRouter:
 <html>
 <body style="font-family:Arial,sans-serif;margin:20px">
   <h2 style="color:#333">MDRP Alert — {status}</h2>
-  <p>Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+  <p>Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
   <table border="1" cellpadding="0" cellspacing="0"
          style="border-collapse:collapse;width:100%;font-size:13px">
     <thead>

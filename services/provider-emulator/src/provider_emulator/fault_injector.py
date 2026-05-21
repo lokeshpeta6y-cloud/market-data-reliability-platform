@@ -19,12 +19,10 @@ Design decisions
 
 from __future__ import annotations
 
-import copy
 import random
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from mdrp_common.logging import get_logger
 from mdrp_common.metrics import FAULTS_INJECTED_TOTAL
@@ -376,7 +374,7 @@ class FaultInjector:
         stale_seconds = stale_hours * 3600
         new_ts = datetime.fromtimestamp(
             event.event_timestamp.timestamp() - stale_seconds,
-            tz=timezone.utc,
+            tz=UTC,
         )
         event = event.model_copy(
             update={

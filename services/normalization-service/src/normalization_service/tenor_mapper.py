@@ -15,8 +15,8 @@ Spot      : "spot"
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import re
-from datetime import datetime, timezone
 
 from mdrp_common.models import DeliveryPeriod
 
@@ -108,7 +108,7 @@ _RE_RELATIVE_QUARTERLY = re.compile(r"^Q\+(\d+)$", re.IGNORECASE)
 
 def _months_forward(n: int) -> str:
     """Return YYYY-MM for the date exactly *n* months from today."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     total_months = now.month - 1 + n
     year = now.year + total_months // 12
     month = total_months % 12 + 1
@@ -117,7 +117,7 @@ def _months_forward(n: int) -> str:
 
 def _quarters_forward(n: int) -> str:
     """Return YYYY-QQ for the calendar quarter *n* quarters from today."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     total_quarters = (now.month - 1) // 3 + n
     year = now.year + total_quarters // 4
     quarter = total_quarters % 4 + 1

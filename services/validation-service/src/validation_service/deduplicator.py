@@ -15,7 +15,7 @@ safe for multiple validation-service replicas running in parallel.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import redis
 
@@ -63,7 +63,7 @@ class Deduplicator:
             False → first time seen, event has been recorded.
         """
         key = f"{_KEY_PREFIX}{event_id}"
-        first_seen_epoch = str(datetime.now(timezone.utc).timestamp())
+        first_seen_epoch = str(datetime.now(UTC).timestamp())
 
         # SET key value NX EX ttl — returns True if key was newly set, None if key existed
         was_set: bool | None = self._redis.set(

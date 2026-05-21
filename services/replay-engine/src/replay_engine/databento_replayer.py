@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from mdrp_common.kafka_client import MdrpProducer, Topics
@@ -191,7 +191,7 @@ class DatabentoReplayer:
         """
         # ts_event is nanoseconds since epoch
         ts_ns: int = getattr(record, "ts_event", 0)
-        event_ts = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
+        event_ts = datetime.fromtimestamp(ts_ns / 1e9, tz=UTC)
 
         provider = job.provider or self._dataset
         instrument = (
@@ -222,7 +222,7 @@ class DatabentoReplayer:
             event_id=str(uuid.uuid4()),
             provider=str(provider),
             instrument=str(instrument),
-            received_at=datetime.now(timezone.utc),
+            received_at=datetime.now(UTC),
             event_timestamp=event_ts,
             payload=payload,
             is_replay=True,

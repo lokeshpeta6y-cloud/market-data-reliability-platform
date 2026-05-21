@@ -16,7 +16,6 @@ import signal
 import threading
 import time
 from types import FrameType
-from typing import Any
 
 import redis
 

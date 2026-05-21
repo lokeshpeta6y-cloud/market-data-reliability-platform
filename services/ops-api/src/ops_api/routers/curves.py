@@ -9,7 +9,7 @@ GET /api/v1/curves/{instrument}/history   — last N curve events from Redis sor
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status

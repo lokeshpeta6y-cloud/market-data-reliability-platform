@@ -31,6 +31,7 @@ Target DDL (for reference — apply once to your Snowflake account):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import tempfile
 import time
@@ -313,10 +314,8 @@ class SnowflakeClient:
                 for row in cursor.fetchall():
                     # Snowflake COPY INTO result: (file, status, rows_parsed,
                     #   rows_loaded, error_limit, errors_seen, first_error, ...)
-                    try:
+                    with contextlib.suppress(IndexError, TypeError, ValueError):
                         rows_loaded += int(row[3])
-                    except (IndexError, TypeError, ValueError):
-                        pass
 
                 return rows_loaded
             finally:
@@ -332,7 +331,7 @@ class SnowflakeClient:
     # Context manager
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "SnowflakeClient":
+    def __enter__(self) -> SnowflakeClient:
         return self
 
     def __exit__(

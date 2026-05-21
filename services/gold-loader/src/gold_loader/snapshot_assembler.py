@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import CurveEvent, ForwardCurveSnapshot, TenorPrice
@@ -136,7 +136,7 @@ class SnapshotAssembler:
 
     def get_ready_snapshots(self) -> list[ForwardCurveSnapshot]:
         """Return and remove all expired windows that meet the minimum completeness threshold."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff_seconds = 2 * self._window_seconds
         ready: list[ForwardCurveSnapshot] = []
         expired_keys: list[tuple[str, datetime]] = []
@@ -195,7 +195,7 @@ class SnapshotAssembler:
         """Truncate *ts* to the current window boundary (UTC)."""
         epoch_seconds = int(ts.timestamp())
         window_epoch = (epoch_seconds // self._window_seconds) * self._window_seconds
-        return datetime.fromtimestamp(window_epoch, tz=timezone.utc)
+        return datetime.fromtimestamp(window_epoch, tz=UTC)
 
     def _get_expected_tenors(self, curve_name: str, tenors_seen: int) -> int:
         """Return the configured tenor count override, or the learned maximum for this curve."""

@@ -9,11 +9,11 @@ a topic boundary.
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 # ---------------------------------------------------------------------------
 
 
-class DeliveryPeriod(str, Enum):
+class DeliveryPeriod(StrEnum):
     SPOT = "spot"
     MONTHLY = "monthly"
     QUARTERLY = "quarterly"
@@ -31,7 +31,7 @@ class DeliveryPeriod(str, Enum):
     ANNUAL = "annual"
 
 
-class FaultType(str, Enum):
+class FaultType(StrEnum):
     DUPLICATE = "duplicate"
     DELAYED = "delayed"
     MALFORMED = "malformed"
@@ -42,7 +42,7 @@ class FaultType(str, Enum):
     PARTIAL_CURVE = "partial_curve"
 
 
-class DLQFailureCategory(str, Enum):
+class DLQFailureCategory(StrEnum):
     SCHEMA_VIOLATION = "schema_violation"
     DUPLICATE = "duplicate"
     MALFORMED = "malformed"
@@ -52,13 +52,13 @@ class DLQFailureCategory(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ReplaySource(str, Enum):
+class ReplaySource(StrEnum):
     BRONZE_S3 = "bronze_s3"
     DATABENTO_HISTORICAL = "databento_historical"
     DLQ = "dlq"
 
 
-class ProviderStatus(str, Enum):
+class ProviderStatus(StrEnum):
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     OUTAGE = "outage"
@@ -75,7 +75,7 @@ class RawMarketEvent(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     provider: str
     instrument: str
-    received_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    received_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     event_timestamp: datetime
     payload: dict[str, Any]
     injected_faults: list[FaultType] = Field(default_factory=list)
@@ -89,7 +89,7 @@ class RawMarketEvent(BaseModel):
         if isinstance(v, str):
             v = datetime.fromisoformat(v)
         if v.tzinfo is None:
-            return v.replace(tzinfo=timezone.utc)
+            return v.replace(tzinfo=UTC)
         return v
 
 
@@ -112,7 +112,7 @@ class ValidatedMarketEvent(BaseModel):
     is_replay: bool = False
     replay_source: ReplaySource | None = None
     trace_id: str
-    validated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    validated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ class CurveEvent(BaseModel):
     version: int
     event_timestamp: datetime
     ingestion_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     quality_score: float = Field(ge=0.0, le=1.0)
     is_replay: bool = False
@@ -164,7 +164,7 @@ class DLQEvent(BaseModel):
     failure_category: DLQFailureCategory
     raw_payload: dict[str, Any]
     original_received_at: datetime
-    dlq_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    dlq_timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     retry_count: int = 0
     trace_id: str
 
@@ -182,7 +182,7 @@ class ProviderHealthSnapshot(BaseModel):
     dlq_rate_last_60s: float = 0.0
     quality_score_p50: float = 0.0
     quality_score_p95: float = 0.0
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +197,7 @@ class ReplayJob(BaseModel):
     instrument: str | None = None
     start_time: datetime
     end_time: datetime
-    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    requested_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     requested_by: str = "ops-api"
     status: str = "pending"
     events_replayed: int = 0
@@ -226,4 +226,4 @@ class ForwardCurveSnapshot(BaseModel):
     is_authoritative: bool = False
     version: int
     provider: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

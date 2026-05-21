@@ -22,10 +22,9 @@ that forensic replay can reconstruct the original message exactly.
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timedelta, timezone
-from numbers import Number
+from datetime import UTC, datetime, timedelta
 from typing import Any
+import uuid
 
 from mdrp_common.logging import get_logger, set_trace_id
 from mdrp_common.metrics import (
@@ -39,7 +38,6 @@ from mdrp_common.metrics import (
 from mdrp_common.models import (
     DLQEvent,
     DLQFailureCategory,
-    FaultType,
     RawMarketEvent,
     ValidatedMarketEvent,
 )
@@ -214,7 +212,7 @@ class ValidationService:
         )
 
         # Record end-to-end processing latency
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         latency = (now - event.event_timestamp).total_seconds()
         EVENT_PROCESSING_LATENCY_SECONDS.labels(
             service="validation-service", provider=event.provider
@@ -259,7 +257,7 @@ class ValidationService:
 
         Returns (error_message, category) — error_message is None on success.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         oldest_allowed = now - timedelta(hours=self._settings.max_event_age_hours)
         latest_allowed = now + timedelta(minutes=self._settings.max_future_minutes)
 

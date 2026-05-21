@@ -30,14 +30,15 @@ from __future__ import annotations
 import signal
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from prometheus_client import Gauge
 
 from mdrp_common.kafka_client import MdrpProducer, Topics
 from mdrp_common.logging import get_logger
 from mdrp_common.metrics import (
     EVENTS_INGESTED_TOTAL,
     EVENTS_PUBLISHED_TOTAL,
-    FAULTS_INJECTED_TOTAL,
     PROVIDER_LAST_EVENT_TIMESTAMP,
 )
 from mdrp_common.models import RawMarketEvent
@@ -48,9 +49,6 @@ from provider_emulator.market_data_generator import MarketDataGenerator
 from provider_emulator.settings import EmulatorSettings
 
 logger = get_logger(__name__)
-
-# Prometheus gauge for delay queue depth (emulator-specific)
-from prometheus_client import Gauge
 
 DELAY_QUEUE_DEPTH = Gauge(
     "mdrp_emulator_delay_queue_depth",
@@ -320,7 +318,7 @@ class ProviderEmulator:
         ).inc()
 
         PROVIDER_LAST_EVENT_TIMESTAMP.labels(provider=event.provider).set(
-            datetime.now(timezone.utc).timestamp()
+            datetime.now(UTC).timestamp()
         )
 
         if event.injected_faults:

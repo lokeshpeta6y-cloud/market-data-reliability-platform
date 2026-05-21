@@ -10,7 +10,7 @@ GET /api/v1/providers/{provider} — single provider detail
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -33,7 +33,7 @@ router = APIRouter(tags=["health"])
 
 class LivenessResponse(BaseModel):
     status: str = "ok"
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ComponentStatus(BaseModel):
@@ -45,7 +45,7 @@ class ComponentStatus(BaseModel):
 
 class PipelineStatusResponse(BaseModel):
     overall: str  # "healthy" | "degraded" | "outage"
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     components: list[ComponentStatus]
 
 
@@ -218,7 +218,7 @@ async def _read_provider_snapshot(
         status=status_val,
         last_event_at=last_event_at,
         events_last_60s=events_last_60s,
-        updated_at=last_event_at or datetime.now(timezone.utc),
+        updated_at=last_event_at or datetime.now(UTC),
     )
 
 

@@ -7,7 +7,7 @@ POST /api/v1/alerts/webhook — receive AlertManager webhook, dispatch async
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request, status
@@ -69,7 +69,7 @@ class AlertManagerWebhook(BaseModel):
 class WebhookResponse(BaseModel):
     accepted: bool = True
     message: str = "Alert received"
-    received_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    received_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+import time
 from typing import Any
 
 from mdrp_common.logging import get_logger
@@ -92,7 +92,7 @@ class BronzeWriter:
             self._restore_events(failed_events)
             raise BronzeWriteError(
                 f"{len(failed_events)} events failed to write to S3 across "
-                f"{len(set(e.get('provider', 'unknown') for e in failed_events))} provider(s)"
+                f"{len({e.get('provider', 'unknown') for e in failed_events})} provider(s)"
             )
 
     def flush_all(self) -> None:
@@ -174,13 +174,13 @@ class BronzeWriter:
         received_at = first.get("received_at")
 
         if isinstance(received_at, datetime):
-            return received_at if received_at.tzinfo else received_at.replace(tzinfo=timezone.utc)
+            return received_at if received_at.tzinfo else received_at.replace(tzinfo=UTC)
 
         if isinstance(received_at, str):
             try:
                 dt = datetime.fromisoformat(received_at)
-                return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+                return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
             except ValueError:
                 pass
 
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)

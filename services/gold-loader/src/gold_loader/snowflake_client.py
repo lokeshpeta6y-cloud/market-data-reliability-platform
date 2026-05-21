@@ -310,7 +310,7 @@ class SnowflakeClient:
     # Context manager
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "SnowflakeClient":
+    def __enter__(self) -> SnowflakeClient:
         return self
 
     def __exit__(
