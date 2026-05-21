@@ -6,8 +6,25 @@ A cloud-native streaming and batch pipeline for ingesting, validating, and servi
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker)
 ![Redpanda](https://img.shields.io/badge/redpanda-v24.1-E84747?logo=apachekafka)
 ![Snowflake](https://img.shields.io/badge/snowflake-silver%2Fgold-29B5E8?logo=snowflake)
-![AWS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900?logo=amazonaws)
+![AWS](https://img.shields.io/badge/AWS-EC2%20%2B%20S3-FF9900?logo=amazonaws)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+---
+
+## Live Stack
+
+The full platform is deployed and running on AWS EC2 (us-east-2). Access credentials and verification steps are in [EVAL_GUIDE.md](EVAL_GUIDE.md).
+
+| Service | URL |
+|---------|-----|
+| Ops API | `http://<HOST>:8000` |
+| Grafana | `http://<HOST>:3000` |
+| Prometheus | `http://<HOST>:9090` |
+| Jaeger | `http://<HOST>:16686` |
+
+> `<HOST>` is the EC2 public IP — see EVAL_GUIDE.md for the current value and all credentials.
+
+The cloud stack runs via `docker-compose.cloud.yml` on a single EC2 instance — real AWS S3 for Bronze storage, Snowflake for Silver/Gold layers, secrets pulled from Secrets Manager on bootstrap. To run locally instead, see [Quick Start](#quick-start) below (uses MinIO in place of S3, no cloud account needed).
 
 ---
 
@@ -628,32 +645,43 @@ The silver-loader and gold-loader services check `snowflake_configured` at start
 
 ## AWS Deployment
 
-The platform is deployable to AWS ECS Fargate using Terraform. Infrastructure is defined in `infra/terraform/` with modules for networking (VPC, subnets, security groups), ECS (task definitions, services, IAM roles), S3 (Bronze bucket with versioning and lifecycle rules), and Secrets Manager.
+The cloud stack runs on a single EC2 instance (Amazon Linux 2023) via Docker Compose. The bootstrap script provisions the instance, pulls secrets from Secrets Manager, and starts all 16 containers automatically.
 
-### Prerequisites
+### Deploy a new instance
 
-- Terraform >= 1.5
-- AWS CLI configured with an IAM user/role that has ECS, S3, Secrets Manager, VPC, and IAM permissions
-- An ECR registry for service images (or use public ECR)
-- A Snowflake account for Silver/Gold persistence
+```bash
+# Requires AWS CLI configured with EC2, IAM, S3, and Secrets Manager permissions
+bash infra/deploy-ec2.sh
+```
 
-### Deploy
+The script creates the IAM role and instance profile, security group, resolves the latest AL2023 AMI, and launches the instance. Bootstrap takes ~10 minutes (Docker image builds). Monitor progress:
+
+```bash
+# Tail bootstrap logs via SSM (no SSH key needed)
+aws ssm start-session --target <instance-id> --region us-east-2
+sudo tail -f /var/log/mdrp-init.log
+```
+
+### What the bootstrap does
+
+`infra/ec2-bootstrap.sh` (curled from GitHub on first boot):
+1. Installs Docker, Docker Compose v2, git, jq
+2. Clones this repo to `/opt/mdrp`
+3. Fetches all secrets from Secrets Manager (`mdrp/prod/*`)
+4. Writes `/opt/mdrp/.env`
+5. Runs `docker compose -f docker-compose.cloud.yml build && up -d`
+
+All secrets (Snowflake PAT, Databento API key) are stored in AWS Secrets Manager and written to `.env` at boot — never in code or the Docker image.
+
+### Terraform (optional)
+
+Terraform modules in `infra/terraform/` define the supporting AWS infrastructure (S3 buckets, Secrets Manager secrets, IAM roles, security groups). These are idempotent and safe to re-apply. The EC2 instance itself is managed by `deploy-ec2.sh`, not Terraform.
 
 ```bash
 cd infra/terraform/environments/prod
-
-# Copy and review variable values
 cp terraform.tfvars.example terraform.tfvars
-vim terraform.tfvars
-
-terraform init
-terraform plan -out=prod.tfplan
-terraform apply prod.tfplan
+terraform init && terraform apply
 ```
-
-Refer to `infra/terraform/README.md` for full variable reference, remote state configuration, and rollout strategy.
-
-In production, all secrets (Snowflake password, Databento API key, Teams webhook URL, SMTP password) are stored in AWS Secrets Manager and injected into ECS task definitions as environment variable references — never in plaintext in the task definition or in code.
 
 ---
 
