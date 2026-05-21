@@ -2,19 +2,22 @@
 
 This document covers everything needed to verify the live system. For architecture and design rationale see [SHOWCASE.md](SHOWCASE.md).
 
+> **Before you start:** Replace `<HOST>` throughout this document with the EC2 public IP provided to you.
+> Snowflake account, user, and all credentials are provided alongside this file.
+
 ---
 
 ## Access Credentials
 
 | Resource | Value |
 |----------|-------|
-| EC2 Public IP | `13.58.210.216` |
-| Ops API | `http://13.58.210.216:8000` |
-| Grafana | `http://13.58.210.216:3000` → admin / `mdrp_grafana` |
-| Prometheus | `http://13.58.210.216:9090` |
-| Jaeger | `http://13.58.210.216:16686` |
-| Snowflake account | `YMAUZRZ-ME29964` |
-| Snowflake user | `Lokesh` |
+| EC2 Public IP | `<HOST>` — provided separately |
+| Ops API | `http://<HOST>:8000` |
+| Grafana | `http://<HOST>:3000` → admin / _provided separately_ |
+| Prometheus | `http://<HOST>:9090` |
+| Jaeger | `http://<HOST>:16686` |
+| Snowflake account | _provided separately_ |
+| Snowflake user | _provided separately_ |
 | Snowflake PAT token | _provided separately_ |
 | AWS eval credentials | _provided separately_ (read-only: S3 + Snowflake secret) |
 
@@ -26,35 +29,35 @@ The API reads from the Redis hot cache and responds in sub-millisecond latency.
 
 **System health**
 ```bash
-curl http://13.58.210.216:8000/health
+curl http://<HOST>:8000/health
 ```
 Expected: all 9 services `"status": "healthy"`.
 
 **Live forward curves (all instruments)**
 ```bash
-curl http://13.58.210.216:8000/api/v1/curves
+curl http://<HOST>:8000/api/v1/curves
 ```
 
 **Single instrument with all tenors**
 ```bash
-curl http://13.58.210.216:8000/api/v1/curves/TTF
-curl http://13.58.210.216:8000/api/v1/curves/NBP
-curl http://13.58.210.216:8000/api/v1/curves/BRENT
+curl http://<HOST>:8000/api/v1/curves/TTF
+curl http://<HOST>:8000/api/v1/curves/NBP
+curl http://<HOST>:8000/api/v1/curves/BRENT
 ```
 
 **Provider health and quality KPIs**
 ```bash
-curl http://13.58.210.216:8000/api/v1/providers
+curl http://<HOST>:8000/api/v1/providers
 ```
 
 **Dead-letter queue status**
 ```bash
-curl http://13.58.210.216:8000/api/v1/dlq
+curl http://<HOST>:8000/api/v1/dlq
 ```
 
-**Trigger a Bronze S3 replay** (replays the last hour of events)
+**Trigger a Bronze S3 replay** (adjust the time window to match today's date)
 ```bash
-curl -X POST http://13.58.210.216:8000/api/v1/replay \
+curl -X POST http://<HOST>:8000/api/v1/replay \
   -H "Content-Type: application/json" \
   -d '{
     "source": "bronze_s3",
@@ -68,7 +71,7 @@ curl -X POST http://13.58.210.216:8000/api/v1/replay \
 
 ## 2. Grafana Dashboards
 
-Navigate to `http://13.58.210.216:3000` and log in with `admin` / `mdrp_grafana`.
+Navigate to `http://<HOST>:3000` and log in with `admin` / _password provided separately_.
 
 **What to look for:**
 - **MDRP Overview** dashboard — event throughput, validation pass rate, DLQ depth, quality scores per instrument
@@ -80,7 +83,7 @@ Navigate to `http://13.58.210.216:3000` and log in with `admin` / `mdrp_grafana`
 
 ## 3. Prometheus
 
-Navigate to `http://13.58.210.216:9090`.
+Navigate to `http://<HOST>:9090`.
 
 Useful queries to run directly in the Prometheus expression browser:
 
@@ -103,19 +106,19 @@ mdrp_provider_quality_score
 
 ## 4. Jaeger Traces
 
-Navigate to `http://13.58.210.216:16686`.
+Navigate to `http://<HOST>:16686`.
 
 Select service **`ops-api`** and search for recent traces. Each API request is traced end-to-end with span attributes including instrument, provider, and Redis read latency.
 
-To generate a trace, make any API call (e.g. `curl http://13.58.210.216:8000/api/v1/curves`) then refresh Jaeger.
+To generate a trace, make any API call (e.g. `curl http://<HOST>:8000/api/v1/curves`) then refresh Jaeger.
 
 ---
 
 ## 5. Snowflake — Silver and Gold Layers
 
 Connect using:
-- **Account:** `YMAUZRZ-ME29964`
-- **User:** `Lokesh`
+- **Account:** _provided separately_
+- **User:** _provided separately_
 - **Authenticator:** `programmatic_access_token`
 - **PAT token:** _provided separately_
 - **Warehouse:** `MDRP_LOAD_WH`
@@ -160,8 +163,7 @@ WHERE is_authoritative = TRUE
 ORDER BY as_of DESC
 LIMIT 12;
 
--- Quality gate in action — discarded partial snapshots have no rows here
--- (completeness < 0.80 snapshots are rejected before load)
+-- Quality gate in action — completeness < 0.80 snapshots are rejected before load
 SELECT completeness_pct, COUNT(*) AS count
 FROM MARKET_DATA.GOLD_CURVES.FORWARD_CURVE_SNAPSHOTS
 GROUP BY completeness_pct
@@ -172,12 +174,11 @@ ORDER BY completeness_pct;
 
 ## 6. S3 Bronze Layer
 
-With the provided AWS eval credentials (`us-east-2`):
+With the provided AWS eval credentials (region `us-east-2`):
 
 ```bash
 # List today's Parquet files
-aws s3 ls s3://mdrp-bronze/bronze/provider-emulator/2026-05-21/ \
-  --recursive --human-readable
+aws s3 ls s3://mdrp-bronze/bronze/provider-emulator/ --recursive --human-readable
 
 # Download a file to inspect
 aws s3 cp s3://mdrp-bronze/bronze/provider-emulator/2026-05-21/11/events_<uuid>.parquet .
@@ -186,7 +187,7 @@ aws s3 cp s3://mdrp-bronze/bronze/provider-emulator/2026-05-21/11/events_<uuid>.
 python3 -c "import pandas as pd; df = pd.read_parquet('events_<uuid>.parquet'); print(df.head())"
 ```
 
-The Bronze bucket preserves **all** events including fault-injected ones, providing the full immutable audit trail. Silver and Gold layers contain only quality-gated events.
+The Bronze bucket preserves **all** events including fault-injected ones — the full immutable audit trail. Silver and Gold contain only quality-gated events.
 
 ---
 
@@ -199,7 +200,7 @@ The Bronze bucket preserves **all** events including fault-injected ones, provid
 | Fault injection active | `GET /api/v1/providers` | non-zero fault counters |
 | DLQ routing working | `GET /api/v1/dlq` | malformed events present |
 | Bronze S3 writing | AWS CLI `ls mdrp-bronze` | Parquet files updated within last 30s |
-| Silver loaded | Snowflake Silver COUNT | 80,000+ rows (growing live) |
+| Silver loaded | Snowflake Silver COUNT | growing row count, updated live |
 | Gold quality gate | Snowflake Gold query | completeness_pct ≥ 0.80 for all rows |
 | Grafana live | Open dashboard | panels updating every 15s |
 | Replay functional | POST `/api/v1/replay` | returns job_id, events re-appear in topics |

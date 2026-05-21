@@ -94,9 +94,8 @@ variable "teams_webhook_url" {
 }
 
 variable "aws_account_id" {
-  description = "AWS account ID (12-digit) — used in IAM ARN construction"
+  description = "AWS account ID (12-digit) — used in IAM ARN construction. Set via TF_VAR_aws_account_id or terraform.tfvars."
   type        = string
-  default     = "299582146389"
 }
 
 variable "s3_bronze_bucket" {
