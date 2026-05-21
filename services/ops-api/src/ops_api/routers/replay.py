@@ -9,13 +9,13 @@ GET  /api/v1/replay/{job_id}     — get job status and progress
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, model_validator
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import ReplayJob, ReplaySource
+
 from ..dependencies import RedisDep, SettingsDep
 
 log = get_logger(__name__)
@@ -55,16 +55,18 @@ class ReplayRequest(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_window(self) -> "ReplayRequest":
+    def validate_window(self) -> ReplayRequest:
         if self.end_time <= self.start_time:
             raise ValueError("end_time must be after start_time")
-        if self.source in (
-            ReplaySource.BRONZE_S3,
-            ReplaySource.DATABENTO_HISTORICAL,
-        ) and not self.provider:
-            raise ValueError(
-                f"'provider' is required for source '{self.source.value}'"
+        if (
+            self.source
+            in (
+                ReplaySource.BRONZE_S3,
+                ReplaySource.DATABENTO_HISTORICAL,
             )
+            and not self.provider
+        ):
+            raise ValueError(f"'provider' is required for source '{self.source.value}'")
         return self
 
 

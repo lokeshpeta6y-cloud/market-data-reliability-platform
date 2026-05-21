@@ -50,13 +50,10 @@ class BaseServiceSettings(BaseSettings):
         if isinstance(v, str) and v.strip() == "":
             return None
         return v
-    s3_bucket_bronze: str = Field(
-        default="mdrp-bronze", alias="S3_BUCKET_BRONZE"
-    )
+
+    s3_bucket_bronze: str = Field(default="mdrp-bronze", alias="S3_BUCKET_BRONZE")
     aws_access_key_id: str | None = Field(default=None, alias="AWS_ACCESS_KEY_ID")
-    aws_secret_access_key: str | None = Field(
-        default=None, alias="AWS_SECRET_ACCESS_KEY"
-    )
+    aws_secret_access_key: str | None = Field(default=None, alias="AWS_SECRET_ACCESS_KEY")
     aws_region: str = Field(default="us-east-1", alias="AWS_REGION")
 
     # Snowflake (optional — skipped if not configured)
@@ -65,24 +62,14 @@ class BaseServiceSettings(BaseSettings):
     snowflake_password: str | None = Field(default=None, alias="SNOWFLAKE_PASSWORD")
     # PAT token takes precedence over password; bypasses MFA
     snowflake_pat_token: str | None = Field(default=None, alias="SNOWFLAKE_PAT_TOKEN")
-    snowflake_database: str = Field(
-        default="MARKET_DATA", alias="SNOWFLAKE_DATABASE"
-    )
-    snowflake_schema_silver: str = Field(
-        default="SILVER_EVENTS", alias="SNOWFLAKE_SCHEMA_SILVER"
-    )
-    snowflake_schema_gold: str = Field(
-        default="GOLD_CURVES", alias="SNOWFLAKE_SCHEMA_GOLD"
-    )
-    snowflake_warehouse: str = Field(
-        default="INGESTION_WH", alias="SNOWFLAKE_WAREHOUSE"
-    )
+    snowflake_database: str = Field(default="MARKET_DATA", alias="SNOWFLAKE_DATABASE")
+    snowflake_schema_silver: str = Field(default="SILVER_EVENTS", alias="SNOWFLAKE_SCHEMA_SILVER")
+    snowflake_schema_gold: str = Field(default="GOLD_CURVES", alias="SNOWFLAKE_SCHEMA_GOLD")
+    snowflake_warehouse: str = Field(default="INGESTION_WH", alias="SNOWFLAKE_WAREHOUSE")
 
     # Databento (optional — emulator is used when not set)
     databento_api_key: str | None = Field(default=None, alias="DATABENTO_API_KEY")
-    databento_dataset: str = Field(
-        default="DBEQ.BASIC", alias="DATABENTO_DATASET"
-    )
+    databento_dataset: str = Field(default="DBEQ.BASIC", alias="DATABENTO_DATASET")
 
     @property
     def snowflake_configured(self) -> bool:

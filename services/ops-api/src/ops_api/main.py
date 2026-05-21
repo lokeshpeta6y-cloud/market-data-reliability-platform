@@ -8,9 +8,8 @@ handles startup/shutdown lifecycle, and exposes Prometheus /metrics.
 from __future__ import annotations
 
 import asyncio
-import threading
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Request, Response
@@ -22,6 +21,7 @@ from mdrp_common.kafka_client import MdrpProducer, ensure_topics
 from mdrp_common.logging import configure_logging, get_logger
 from mdrp_common.metrics import register_metrics
 from mdrp_common.storage import BronzeStorageClient
+
 from .alerting import AlertRouter
 from .routers import alerts, curves, dlq, health, replay
 from .settings import OpsApiSettings
@@ -71,9 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Ensure topics exist (best-effort; don't fail startup if Kafka is down)
     try:
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None, ensure_topics, settings.kafka_bootstrap_servers
-        )
+        await loop.run_in_executor(None, ensure_topics, settings.kafka_bootstrap_servers)
     except Exception as exc:
         log.warning("kafka_topic_ensure_failed", error=str(exc))
 
@@ -214,9 +212,7 @@ def create_app(settings: OpsApiSettings | None = None) -> FastAPI:
     log = get_logger(_SERVICE_NAME)
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         log.error(
             "unhandled_exception",
             path=request.url.path,

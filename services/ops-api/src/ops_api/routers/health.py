@@ -10,14 +10,15 @@ GET /api/v1/providers/{provider} — single provider detail
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import ProviderHealthSnapshot, ProviderStatus
+
 from ..dependencies import RedisDep, SettingsDep, StorageDep
 
 log = get_logger(__name__)
@@ -128,10 +129,7 @@ async def list_providers(redis: RedisDep) -> list[ProviderHealthSnapshot]:
     pattern = "provider:health:*"
     all_keys: list[bytes] = await redis.keys(pattern)
     # Filter out the rolling minute counter sub-keys
-    health_keys = [
-        k for k in all_keys
-        if b":minute:" not in k
-    ]
+    health_keys = [k for k in all_keys if b":minute:" not in k]
     if not health_keys:
         return []
 
@@ -186,16 +184,12 @@ async def _read_provider_snapshot(
     last_event_at: datetime | None = None
     raw_last = fields.get("last_event_at")
     if raw_last:
-        try:
+        with contextlib.suppress(ValueError):
             last_event_at = datetime.fromisoformat(raw_last)
-        except ValueError:
-            pass
 
     events_per_minute = 0
-    try:
+    with contextlib.suppress(ValueError):
         events_per_minute = int(fields.get("events_per_minute", "0"))
-    except ValueError:
-        pass
 
     # Estimate events in last 60 s from events_per_minute (same granularity)
     events_last_60s = events_per_minute
@@ -204,6 +198,7 @@ async def _read_provider_snapshot(
     status_val = ProviderStatus.UNKNOWN
     if last_event_at is not None:
         import time as _time
+
         age_s = _time.time() - last_event_at.timestamp()
         if age_s < 300:
             status_val = ProviderStatus.HEALTHY

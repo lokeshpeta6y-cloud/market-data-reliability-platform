@@ -20,7 +20,6 @@ from datetime import UTC, datetime
 
 from mdrp_common.models import DeliveryPeriod
 
-
 # ---------------------------------------------------------------------------
 # Month name / abbreviation look-up tables
 # ---------------------------------------------------------------------------
@@ -55,6 +54,7 @@ _FULL_MONTH_TO_NUM: dict[str, str] = {
     "december": "12",
 }
 
+
 # Two-digit year suffix → four-digit year (20xx assumption)
 def _expand_2y(yy: str) -> str:
     """Convert a two-digit year string to four digits (20xx)."""
@@ -82,14 +82,10 @@ _RE_QUARTERLY_Q_FIRST = re.compile(r"^Q([1-4])[\s\-](\d{4})$", re.IGNORECASE)
 _RE_QUARTERLY_Y_FIRST = re.compile(r"^(\d{4})[\-]?Q([1-4])$", re.IGNORECASE)
 
 # Seasonal summer
-_RE_SEASONAL_SUMMER = re.compile(
-    r"^(?:Summer\s+(\d{4})|SUM(\d{2}))$", re.IGNORECASE
-)
+_RE_SEASONAL_SUMMER = re.compile(r"^(?:Summer\s+(\d{4})|SUM(\d{2}))$", re.IGNORECASE)
 
 # Seasonal winter
-_RE_SEASONAL_WINTER = re.compile(
-    r"^(?:Winter\s+(\d{4})|WIN(\d{2}))$", re.IGNORECASE
-)
+_RE_SEASONAL_WINTER = re.compile(r"^(?:Winter\s+(\d{4})|WIN(\d{2}))$", re.IGNORECASE)
 
 # Annual: "Cal-2024", "CAL24", bare "2024"
 _RE_ANNUAL_CAL_DASH = re.compile(r"^Cal-(\d{4})$", re.IGNORECASE)
@@ -255,8 +251,7 @@ class TenorMapper:
             return f"{m.group(1)}-CAL", DeliveryPeriod.ANNUAL
 
         raise ValueError(
-            f"Unrecognised tenor string: {raw_tenor!r}. "
-            "Cannot map to a canonical format."
+            f"Unrecognised tenor string: {raw_tenor!r}. Cannot map to a canonical format."
         )
 
 

@@ -30,9 +30,7 @@ def get_trace_id() -> str | None:
     return _trace_id_var.get()
 
 
-def _add_trace_id(
-    logger: Any, method: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+def _add_trace_id(logger: Any, method: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     trace_id = get_trace_id()
     if trace_id:
         event_dict["trace_id"] = trace_id
@@ -65,9 +63,7 @@ def configure_logging(service_name: str, level: str = "INFO") -> None:
 
     structlog.configure(
         processors=shared_processors + [renderer],
-        wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelName(level.upper())
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level.upper())),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,

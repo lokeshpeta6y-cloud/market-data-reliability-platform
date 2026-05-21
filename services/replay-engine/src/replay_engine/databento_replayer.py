@@ -65,8 +65,7 @@ class DatabentoReplayer:
     ) -> None:
         if not _DATABENTO_AVAILABLE:
             raise RuntimeError(
-                "databento package is not installed. "
-                "Install it with: pip install databento"
+                "databento package is not installed. Install it with: pip install databento"
             )
         self._api_key = api_key
         self._dataset = dataset
@@ -133,9 +132,7 @@ class DatabentoReplayer:
 
             total_events += 1
             events_in_window += 1
-            REPLAY_EVENTS_TOTAL.labels(
-                source=ReplaySource.DATABENTO_HISTORICAL.value
-            ).inc()
+            REPLAY_EVENTS_TOTAL.labels(source=ReplaySource.DATABENTO_HISTORICAL.value).inc()
 
             if events_in_window >= 100:
                 elapsed = time.monotonic() - rate_start

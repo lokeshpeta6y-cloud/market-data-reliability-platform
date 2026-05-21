@@ -294,9 +294,7 @@ class SnowflakeClient:
                 rows_updated = int(row[1]) if row and len(row) > 1 and row[1] is not None else 0
 
                 # Clean up staged file
-                cursor.execute(
-                    f"REMOVE @{self._schema}.{self._stage_name}/{staged_file}"
-                )
+                cursor.execute(f"REMOVE @{self._schema}.{self._stage_name}/{staged_file}")
                 return rows_inserted + rows_updated
             finally:
                 cursor.close()

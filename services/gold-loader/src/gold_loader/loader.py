@@ -21,8 +21,9 @@ from __future__ import annotations
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import CurveEvent, ForwardCurveSnapshot
-from .snowflake_client import SnowflakeClient
+
 from .snapshot_assembler import SnapshotAssembler
+from .snowflake_client import SnowflakeClient
 
 logger = get_logger(__name__)
 

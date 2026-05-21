@@ -9,13 +9,14 @@ This avoids re-creating connections on every request.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated, AsyncGenerator
+from typing import Annotated
 
 import redis.asyncio as aioredis
 from fastapi import Depends, Request
 
 from mdrp_common.kafka_client import MdrpProducer
 from mdrp_common.storage import BronzeStorageClient
+
 from .settings import OpsApiSettings
 
 
@@ -28,6 +29,7 @@ def get_settings() -> OpsApiSettings:
 # ---------------------------------------------------------------------------
 # Redis dependency
 # ---------------------------------------------------------------------------
+
 
 async def get_redis(
     request: Request,
@@ -46,6 +48,7 @@ async def get_redis(
 # Kafka producer dependency
 # ---------------------------------------------------------------------------
 
+
 def get_producer(request: Request) -> MdrpProducer:
     """
     Return the synchronous MdrpProducer stored on ``app.state.producer``.
@@ -59,6 +62,7 @@ def get_producer(request: Request) -> MdrpProducer:
 # ---------------------------------------------------------------------------
 # Storage client dependency
 # ---------------------------------------------------------------------------
+
 
 def get_storage_client(request: Request) -> BronzeStorageClient:
     """Return the BronzeStorageClient stored on ``app.state.storage``."""

@@ -7,7 +7,6 @@ and assigns default currency and unit for each canonical instrument.
 
 from __future__ import annotations
 
-
 # ---------------------------------------------------------------------------
 # Canonical instrument → (currency, unit)
 # ---------------------------------------------------------------------------
@@ -93,8 +92,7 @@ class InstrumentMapper:
         canonical = _SYMBOL_MAP.get(normalised_key)
         if canonical is None:
             raise ValueError(
-                f"Unknown instrument symbol: {raw_symbol!r}. "
-                "Cannot map to a canonical instrument."
+                f"Unknown instrument symbol: {raw_symbol!r}. Cannot map to a canonical instrument."
             )
         currency, unit = _INSTRUMENT_DEFAULTS[canonical]
         return canonical, currency, unit

@@ -167,13 +167,9 @@ def _process_message(
         instrument=curve_event.instrument,
     ).inc()
 
-    QUALITY_SCORE.labels(provider=curve_event.provider).observe(
-        curve_event.quality_score
-    )
+    QUALITY_SCORE.labels(provider=curve_event.provider).observe(curve_event.quality_score)
 
-    latency = (
-        datetime.now(UTC) - event.event_timestamp
-    ).total_seconds()
+    latency = (datetime.now(UTC) - event.event_timestamp).total_seconds()
     EVENT_PROCESSING_LATENCY_SECONDS.labels(
         service=_SERVICE_NAME,
         provider=curve_event.provider,

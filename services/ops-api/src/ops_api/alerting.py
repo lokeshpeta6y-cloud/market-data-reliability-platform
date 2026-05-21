@@ -23,6 +23,7 @@ from typing import Any
 import httpx
 
 from mdrp_common.logging import get_logger
+
 from .settings import OpsApiSettings
 
 log = get_logger(__name__)
@@ -31,7 +32,7 @@ log = get_logger(__name__)
 _SEVERITY_COLOURS = {
     "critical": "FF0000",  # red
     "warning": "FFA500",  # orange
-    "info": "0078D4",     # Microsoft blue
+    "info": "0078D4",  # Microsoft blue
 }
 
 
@@ -71,18 +72,14 @@ class AlertRouter:
         tasks: list[asyncio.Task[None]] = []
 
         if self._settings.alert_teams_enabled and self._settings.teams_webhook_url:
-            tasks.append(
-                asyncio.create_task(self._send_teams(alert_payload))
-            )
+            tasks.append(asyncio.create_task(self._send_teams(alert_payload)))
 
         if (
             self._settings.alert_email_enabled
             and self._settings.smtp_host
             and self._settings.smtp_recipients
         ):
-            tasks.append(
-                asyncio.create_task(self._send_email(alert_payload))
-            )
+            tasks.append(asyncio.create_task(self._send_email(alert_payload)))
 
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -130,15 +127,11 @@ class AlertRouter:
 
         # Determine severity from the first alert's labels
         first_alert = alerts[0] if alerts else {}
-        severity = (
-            first_alert.get("labels", {}).get("severity", "info").lower()
-        )
+        severity = first_alert.get("labels", {}).get("severity", "info").lower()
         colour = _SEVERITY_COLOURS.get(severity, "0078D4")
 
         # Summary line
-        alert_names = [
-            a.get("labels", {}).get("alertname", "Unknown") for a in alerts
-        ]
+        alert_names = [a.get("labels", {}).get("alertname", "Unknown") for a in alerts]
         summary = f"[{status}] {', '.join(alert_names)}"
 
         # Build sections — one per alert
@@ -149,9 +142,7 @@ class AlertRouter:
             starts_at = alert.get("startsAt", "")
             ends_at = alert.get("endsAt", "")
 
-            facts: list[dict[str, str]] = [
-                {"name": k, "value": str(v)} for k, v in labels.items()
-            ]
+            facts: list[dict[str, str]] = [{"name": k, "value": str(v)} for k, v in labels.items()]
             if starts_at:
                 facts.append({"name": "Started", "value": starts_at})
             if ends_at and ends_at != "0001-01-01T00:00:00Z":
@@ -229,15 +220,13 @@ class AlertRouter:
         alerts: list[dict[str, Any]] = payload.get("alerts", [])
         status: str = payload.get("status", "unknown").upper()
 
-        alert_names = [
-            a.get("labels", {}).get("alertname", "Unknown") for a in alerts
-        ]
+        alert_names = [a.get("labels", {}).get("alertname", "Unknown") for a in alerts]
         subject = f"[MDRP Alert] [{status}] {', '.join(alert_names)}"
 
         # Plain text body
         lines = [
-            f"MDRP Alert Notification",
-            f"========================",
+            "MDRP Alert Notification",
+            "========================",
             f"Status: {status}",
             f"Time:   {datetime.now(UTC).isoformat()}",
             f"Alerts: {len(alerts)}",
@@ -274,7 +263,7 @@ class AlertRouter:
               <td style="padding:8px;font-weight:bold">
                 {labels.get("alertname", "Unknown")}
               </td>
-              <td style="padding:8px">{labels.get("severity","").upper()}</td>
+              <td style="padding:8px">{labels.get("severity", "").upper()}</td>
               <td style="padding:8px">{annotations.get("summary", "")}</td>
               <td style="padding:8px">{alert.get("startsAt", "")}</td>
             </tr>"""
@@ -283,7 +272,7 @@ class AlertRouter:
 <html>
 <body style="font-family:Arial,sans-serif;margin:20px">
   <h2 style="color:#333">MDRP Alert — {status}</h2>
-  <p>Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+  <p>Generated: {datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
   <table border="1" cellpadding="0" cellspacing="0"
          style="border-collapse:collapse;width:100%;font-size:13px">
     <thead>

@@ -69,9 +69,7 @@ class OpsApiSettings(BaseServiceSettings):
     dlq_page_size: int = Field(default=100, alias="DLQ_PAGE_SIZE", ge=1, le=1000)
 
     # Max recent replay jobs returned by the list endpoint
-    replay_list_limit: int = Field(
-        default=50, alias="REPLAY_LIST_LIMIT", ge=1, le=500
-    )
+    replay_list_limit: int = Field(default=50, alias="REPLAY_LIST_LIMIT", ge=1, le=500)
 
     @property
     def smtp_recipients(self) -> list[str]:

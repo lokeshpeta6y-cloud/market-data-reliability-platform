@@ -29,9 +29,9 @@ from typing import Any
 from mdrp_common.logging import get_logger, set_trace_id
 from mdrp_common.metrics import (
     DLQ_EVENTS_TOTAL,
+    EVENT_PROCESSING_LATENCY_SECONDS,
     EVENTS_DEDUPLICATED_TOTAL,
     EVENTS_VALIDATED_TOTAL,
-    EVENT_PROCESSING_LATENCY_SECONDS,
     QUALITY_SCORE,
     VALIDATION_ERRORS_TOTAL,
 )
@@ -178,9 +178,7 @@ class ValidationService:
                 event_id=event.event_id,
                 error=price_error,
             )
-            VALIDATION_ERRORS_TOTAL.labels(
-                provider=event.provider, error_type="malformed"
-            ).inc()
+            VALIDATION_ERRORS_TOTAL.labels(provider=event.provider, error_type="malformed").inc()
             return None, self._make_dlq(
                 event, raw_payload, price_error, DLQFailureCategory.MALFORMED
             )
@@ -188,9 +186,7 @@ class ValidationService:
         # ------------------------------------------------------------------
         # Rule 6: Provider quality scoring
         # ------------------------------------------------------------------
-        quality_score = self._quality_scorer.score_event(
-            event.provider, event.injected_faults
-        )
+        quality_score = self._quality_scorer.score_event(event.provider, event.injected_faults)
         QUALITY_SCORE.labels(provider=event.provider).observe(quality_score)
 
         # ------------------------------------------------------------------
@@ -237,21 +233,15 @@ class ValidationService:
     def _check_types(self, event: RawMarketEvent) -> str | None:
         """Return an error message if type constraints are violated, else None."""
         if not isinstance(event.payload, dict):
-            return (
-                f"payload must be a dict, got {type(event.payload).__name__}"
-            )
+            return f"payload must be a dict, got {type(event.payload).__name__}"
 
         price = event.payload.get("price")
         if price is not None and not isinstance(price, (int, float)):
-            return (
-                f"payload.price must be numeric, got {type(price).__name__}"
-            )
+            return f"payload.price must be numeric, got {type(price).__name__}"
 
         return None
 
-    def _check_timestamp(
-        self, event_timestamp: datetime
-    ) -> tuple[str | None, DLQFailureCategory]:
+    def _check_timestamp(self, event_timestamp: datetime) -> tuple[str | None, DLQFailureCategory]:
         """
         Check event_timestamp is within the allowed window.
 
@@ -290,14 +280,10 @@ class ValidationService:
             return f"payload.price is not numeric: {price!r}"
 
         if price <= self._settings.min_price:
-            return (
-                f"payload.price {price} must be > {self._settings.min_price}"
-            )
+            return f"payload.price {price} must be > {self._settings.min_price}"
 
         if price >= self._settings.max_price:
-            return (
-                f"payload.price {price} must be < {self._settings.max_price}"
-            )
+            return f"payload.price {price} must be < {self._settings.max_price}"
 
         return None
 
@@ -309,9 +295,7 @@ class ValidationService:
         category: DLQFailureCategory,
     ) -> DLQEvent:
         """Construct a DLQEvent, preserving the original raw payload verbatim."""
-        DLQ_EVENTS_TOTAL.labels(
-            provider=event.provider, failure_category=category.value
-        ).inc()
+        DLQ_EVENTS_TOTAL.labels(provider=event.provider, failure_category=category.value).inc()
         EVENTS_VALIDATED_TOTAL.labels(provider=event.provider, outcome="failed").inc()
 
         return DLQEvent(

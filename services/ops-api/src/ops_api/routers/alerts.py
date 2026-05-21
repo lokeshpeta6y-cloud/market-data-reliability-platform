@@ -6,12 +6,10 @@ POST /api/v1/alerts/webhook — receive AlertManager webhook, dispatch async
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request, status
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from mdrp_common.logging import get_logger

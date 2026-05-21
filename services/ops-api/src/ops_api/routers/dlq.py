@@ -7,16 +7,14 @@ POST /api/v1/dlq/replay       — submit a DLQ replay job for a time window
 
 from __future__ import annotations
 
-import json
-from collections import Counter
 from datetime import UTC, datetime
-from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Query, Request, status
 from pydantic import BaseModel, Field, model_validator
 
 from mdrp_common.logging import get_logger
-from mdrp_common.models import DLQEvent, DLQFailureCategory, ReplayJob, ReplaySource
+from mdrp_common.models import DLQEvent, ReplayJob, ReplaySource
+
 from ..dependencies import RedisDep, SettingsDep
 from .replay import SubmitReplayResponse, _get_job_store
 
@@ -25,7 +23,7 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/dlq", tags=["dlq"])
 
 # Redis keys written by the validation service
-_DLQ_RECENT_KEY = "dlq:recent"          # Redis list of serialised DLQEvent JSON (most recent first)
+_DLQ_RECENT_KEY = "dlq:recent"  # Redis list of serialised DLQEvent JSON (most recent first)
 _DLQ_COUNTER_KEY = "dlq:category_counts"  # Redis hash: failure_category -> count
 
 
@@ -79,7 +77,7 @@ class DLQReplayRequest(BaseModel):
     requested_by: str = Field(default="ops-api")
 
     @model_validator(mode="after")
-    def validate_window(self) -> "DLQReplayRequest":
+    def validate_window(self) -> DLQReplayRequest:
         if self.end_time <= self.start_time:
             raise ValueError("end_time must be after start_time")
         return self
@@ -200,7 +198,6 @@ async def submit_dlq_replay(
         job_id=job.job_id,
         status="pending",
         message=(
-            f"DLQ replay job {job.job_id} accepted. "
-            f"Poll /api/v1/replay/{job.job_id} for status."
+            f"DLQ replay job {job.job_id} accepted. Poll /api/v1/replay/{job.job_id} for status."
         ),
     )

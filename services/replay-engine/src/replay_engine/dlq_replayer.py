@@ -131,15 +131,11 @@ class DLQReplayer:
             log.warning("dlq_topic_not_found", job_id=job.job_id)
             return 0
 
-        partitions = [
-            TopicPartition(Topics.DLQ_EVENTS, p)
-            for p in topic_meta.partitions
-        ]
+        partitions = [TopicPartition(Topics.DLQ_EVENTS, p) for p in topic_meta.partitions]
 
         # Get offsets for the start timestamp
         ts_partitions = [
-            TopicPartition(Topics.DLQ_EVENTS, tp.partition, start_ts_ms)
-            for tp in partitions
+            TopicPartition(Topics.DLQ_EVENTS, tp.partition, start_ts_ms) for tp in partitions
         ]
         offsets = consumer.offsets_for_times(ts_partitions, timeout=10)
 

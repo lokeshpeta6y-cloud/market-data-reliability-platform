@@ -46,6 +46,7 @@ from mdrp_common.kafka_client import (
 from mdrp_common.logging import configure_logging, get_logger
 from mdrp_common.metrics import CONSUMER_LAG, register_metrics
 from mdrp_common.models import CurveEvent
+
 from .loader import GoldLoader
 from .settings import GoldLoaderSettings
 from .snapshot_assembler import SnapshotAssembler

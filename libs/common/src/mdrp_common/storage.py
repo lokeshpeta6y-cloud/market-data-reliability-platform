@@ -146,7 +146,11 @@ class BronzeStorageClient:
         response = self._s3.get_object(Bucket=self._bucket, Key=key)
         buf = io.BytesIO(response["Body"].read())
         table = pq.read_table(buf)
-        return table.to_pydict_list() if hasattr(table, "to_pydict_list") else table.to_pandas().to_dict(orient="records")
+        return (
+            table.to_pydict_list()
+            if hasattr(table, "to_pydict_list")
+            else table.to_pandas().to_dict(orient="records")
+        )
 
     def ensure_bucket(self) -> None:
         """Create the bucket if it does not exist. Used for MinIO local setup."""
@@ -166,10 +170,7 @@ class BronzeStorageClient:
 
 def _partition_key(provider: str, ts: datetime, batch_id: str) -> str:
     return (
-        f"bronze/{provider}/"
-        f"{ts.strftime('%Y-%m-%d')}/"
-        f"{ts.strftime('%H')}/"
-        f"events_{batch_id}.parquet"
+        f"bronze/{provider}/{ts.strftime('%Y-%m-%d')}/{ts.strftime('%H')}/events_{batch_id}.parquet"
     )
 
 

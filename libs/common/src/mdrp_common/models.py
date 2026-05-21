@@ -17,7 +17,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
@@ -134,9 +133,7 @@ class CurveEvent(BaseModel):
     provider: str
     version: int
     event_timestamp: datetime
-    ingestion_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    ingestion_timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     quality_score: float = Field(ge=0.0, le=1.0)
     is_replay: bool = False
     replay_source: ReplaySource | None = None

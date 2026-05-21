@@ -10,10 +10,11 @@ from typing import Any
 from mdrp_common.logging import get_logger
 from mdrp_common.metrics import (
     BRONZE_BYTES_WRITTEN_TOTAL,
-    BRONZE_WRITES_TOTAL,
     BRONZE_WRITE_DURATION_SECONDS,
+    BRONZE_WRITES_TOTAL,
 )
 from mdrp_common.storage import BronzeStorageClient
+
 from .buffer import EventBuffer
 
 logger = get_logger(__name__)
@@ -127,9 +128,7 @@ class BronzeWriter:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _write_provider_batch(
-        self, provider: str, events: list[dict[str, Any]]
-    ) -> None:
+    def _write_provider_batch(self, provider: str, events: list[dict[str, Any]]) -> None:
         """Write a single provider's events to Parquet and record metrics."""
         # Use the timestamp of the first event in the batch for partitioning
         flush_ts = self._extract_batch_timestamp(events)

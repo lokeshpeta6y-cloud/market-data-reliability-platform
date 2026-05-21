@@ -90,9 +90,7 @@ class JobStore:
         multiple engine instances cannot both claim the same job.
         """
         # ZPOPMIN returns [(member, score), ...] or []
-        result: list[tuple[bytes, float]] = self._redis.zpopmin(
-            _PENDING_SET_KEY, count=1
-        )
+        result: list[tuple[bytes, float]] = self._redis.zpopmin(_PENDING_SET_KEY, count=1)
         if not result:
             return None
 

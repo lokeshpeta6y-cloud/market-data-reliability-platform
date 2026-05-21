@@ -24,8 +24,9 @@ from mdrp_common.logging import get_logger
 from mdrp_common.metrics import REPLAY_DURATION_SECONDS, REPLAY_JOBS_TOTAL
 from mdrp_common.models import ReplayJob, ReplaySource
 from mdrp_common.storage import BronzeStorageClient
+
 from .bronze_replayer import BronzeReplayer
-from .databento_replayer import DatabentoReplayer, _DATABENTO_AVAILABLE
+from .databento_replayer import _DATABENTO_AVAILABLE, DatabentoReplayer
 from .dlq_replayer import DLQReplayer
 from .job_store import JobStore
 from .settings import ReplayEngineSettings

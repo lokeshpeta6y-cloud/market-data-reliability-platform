@@ -13,10 +13,11 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from mdrp_common.logging import get_logger
 from mdrp_common.models import ForwardCurveSnapshot
+
 from ..dependencies import RedisDep
 
 log = get_logger(__name__)
@@ -69,7 +70,12 @@ async def list_curves(redis: RedisDep) -> list[CurveSummary]:
     if not members:
         # Fallback: scan for snapshot keys directly
         keys = await redis.keys("curve:snapshot:*")
-        members = {k.decode().replace("curve:snapshot:", "") if isinstance(k, bytes) else k.replace("curve:snapshot:", "") for k in keys}
+        members = {
+            k.decode().replace("curve:snapshot:", "")
+            if isinstance(k, bytes)
+            else k.replace("curve:snapshot:", "")
+            for k in keys
+        }
 
     summaries: list[CurveSummary] = []
     for member in members:
@@ -131,7 +137,9 @@ async def get_curve(instrument: str, redis: RedisDep) -> ForwardCurveSnapshot:
 async def get_curve_history(
     instrument: str,
     redis: RedisDep,
-    limit: int = Query(default=20, ge=1, le=200, description="Number of historical curve events to return"),
+    limit: int = Query(
+        default=20, ge=1, le=200, description="Number of historical curve events to return"
+    ),
 ) -> list[dict[str, Any]]:
     """
     Return the last *limit* curve events from the Redis sorted set.

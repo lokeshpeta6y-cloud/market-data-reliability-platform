@@ -241,9 +241,7 @@ def main() -> None:
 
     # Build service components
     deduplicator = Deduplicator(redis_client, ttl_seconds=settings.dedup_ttl_seconds)
-    quality_scorer = QualityScorer(
-        redis_client, rolling_window=settings.quality_rolling_window
-    )
+    quality_scorer = QualityScorer(redis_client, rolling_window=settings.quality_rolling_window)
     validation_service = ValidationService(settings, deduplicator, quality_scorer)
 
     # Kafka producer and consumer
