@@ -8,7 +8,7 @@ dial individual fault types to 0 or 1 without touching the rest.
 
 from __future__ import annotations
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
 from mdrp_common.settings import BaseServiceSettings
@@ -120,13 +120,6 @@ class EmulatorSettings(BaseServiceSettings):
         ],
         alias="INSTRUMENTS",
     )
-
-    @field_validator("instruments", mode="before")
-    @classmethod
-    def _parse_instruments(cls, v: object) -> object:
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        return v
 
     # Provider label stamped on every emitted event
     provider_name: str = Field(
