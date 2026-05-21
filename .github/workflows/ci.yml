@@ -45,7 +45,10 @@ jobs:
       - name: Install service with dev extras
         run: |
           cd ${{ matrix.service }}
-          pip install --no-cache-dir ".[dev]" 2>/dev/null || pip install --no-cache-dir ".[snowflake,dev]" 2>/dev/null || pip install --no-cache-dir --editable ".[dev]"
+          pip install --no-cache-dir ".[dev]" || pip install --no-cache-dir ".[snowflake,dev]" || pip install --no-cache-dir .
+
+      - name: Install lint tools
+        run: pip install "ruff>=0.4.0" "mypy>=1.9.0"
 
       - name: Ruff lint
         run: |
@@ -85,7 +88,7 @@ jobs:
           pip install --no-cache-dir services/validation-service
           pip install --no-cache-dir services/bronze-writer
           pip install --no-cache-dir services/gold-loader
-          pip install --no-cache-dir pytest pyarrow pandas fakeredis
+          pip install --no-cache-dir pytest pyarrow pandas fakeredis requests
 
       - name: Run unit tests
         run: pytest tests/unit/ -v --tb=short
